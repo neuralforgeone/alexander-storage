@@ -149,9 +149,8 @@ func main() {
 		defer memCache.Stop()
 	}
 
-	// Silence unused variable warnings
+	// Silence unused variable warning for cache (will be used for metadata caching in future)
 	_ = memCache
-	_ = locker
 
 	// Initialize encryptor
 	encryptionKey, err := cfg.Auth.GetEncryptionKey()
