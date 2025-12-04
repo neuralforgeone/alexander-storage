@@ -74,6 +74,9 @@ var (
 	// ErrObjectNotFound indicates the requested object does not exist.
 	ErrObjectNotFound = errors.New("object not found")
 
+	// ErrObjectKeyEmpty indicates the object key is empty.
+	ErrObjectKeyEmpty = errors.New("object key cannot be empty")
+
 	// ErrObjectKeyTooLong indicates the object key exceeds maximum length.
 	ErrObjectKeyTooLong = errors.New("object key exceeds maximum length of 1024 characters")
 
@@ -82,6 +85,9 @@ var (
 
 	// ErrVersionNotFound indicates the requested version does not exist.
 	ErrVersionNotFound = errors.New("version not found")
+
+	// ErrInvalidVersionID indicates the version ID format is invalid.
+	ErrInvalidVersionID = errors.New("invalid version ID format")
 
 	// ===========================================
 	// Blob/Storage Errors
