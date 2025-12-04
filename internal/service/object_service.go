@@ -340,21 +340,22 @@ func (s *ObjectService) GetObject(ctx context.Context, input GetObjectInput) (*G
 
 	// Get object
 	var obj *domain.Object
+	var getErr error
 	if input.VersionID != "" && input.VersionID != "null" {
-		versionUUID, err := uuid.Parse(input.VersionID)
-		if err != nil {
+		versionUUID, parseErr := uuid.Parse(input.VersionID)
+		if parseErr != nil {
 			return nil, domain.ErrInvalidVersionID
 		}
-		obj, err = s.objectRepo.GetByKeyAndVersion(ctx, bucket.ID, input.Key, versionUUID)
+		obj, getErr = s.objectRepo.GetByKeyAndVersion(ctx, bucket.ID, input.Key, versionUUID)
 	} else {
-		obj, err = s.objectRepo.GetByKey(ctx, bucket.ID, input.Key)
+		obj, getErr = s.objectRepo.GetByKey(ctx, bucket.ID, input.Key)
 	}
 
-	if err != nil {
-		if errors.Is(err, domain.ErrObjectNotFound) {
+	if getErr != nil {
+		if errors.Is(getErr, domain.ErrObjectNotFound) {
 			return nil, domain.ErrObjectNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", ErrInternalError, err)
+		return nil, fmt.Errorf("%w: %v", ErrInternalError, getErr)
 	}
 
 	// Check if it's a delete marker
@@ -424,21 +425,22 @@ func (s *ObjectService) HeadObject(ctx context.Context, input HeadObjectInput) (
 
 	// Get object
 	var obj *domain.Object
+	var getErr error
 	if input.VersionID != "" && input.VersionID != "null" {
-		versionUUID, err := uuid.Parse(input.VersionID)
-		if err != nil {
+		versionUUID, parseErr := uuid.Parse(input.VersionID)
+		if parseErr != nil {
 			return nil, domain.ErrInvalidVersionID
 		}
-		obj, err = s.objectRepo.GetByKeyAndVersion(ctx, bucket.ID, input.Key, versionUUID)
+		obj, getErr = s.objectRepo.GetByKeyAndVersion(ctx, bucket.ID, input.Key, versionUUID)
 	} else {
-		obj, err = s.objectRepo.GetByKey(ctx, bucket.ID, input.Key)
+		obj, getErr = s.objectRepo.GetByKey(ctx, bucket.ID, input.Key)
 	}
 
-	if err != nil {
-		if errors.Is(err, domain.ErrObjectNotFound) {
+	if getErr != nil {
+		if errors.Is(getErr, domain.ErrObjectNotFound) {
 			return nil, domain.ErrObjectNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", ErrInternalError, err)
+		return nil, fmt.Errorf("%w: %v", ErrInternalError, getErr)
 	}
 
 	// Check if it's a delete marker
@@ -499,22 +501,23 @@ func (s *ObjectService) DeleteObject(ctx context.Context, input DeleteObjectInpu
 
 	// Delete specific version or non-versioned object
 	var obj *domain.Object
+	var getErr error
 	if input.VersionID != "" && input.VersionID != "null" {
-		versionUUID, err := uuid.Parse(input.VersionID)
-		if err != nil {
+		versionUUID, parseErr := uuid.Parse(input.VersionID)
+		if parseErr != nil {
 			return nil, domain.ErrInvalidVersionID
 		}
-		obj, err = s.objectRepo.GetByKeyAndVersion(ctx, bucket.ID, input.Key, versionUUID)
+		obj, getErr = s.objectRepo.GetByKeyAndVersion(ctx, bucket.ID, input.Key, versionUUID)
 	} else {
-		obj, err = s.objectRepo.GetByKey(ctx, bucket.ID, input.Key)
+		obj, getErr = s.objectRepo.GetByKey(ctx, bucket.ID, input.Key)
 	}
 
-	if err != nil {
-		if errors.Is(err, domain.ErrObjectNotFound) {
+	if getErr != nil {
+		if errors.Is(getErr, domain.ErrObjectNotFound) {
 			// S3 returns success even if object doesn't exist
 			return &DeleteObjectOutput{}, nil
 		}
-		return nil, fmt.Errorf("%w: %v", ErrInternalError, err)
+		return nil, fmt.Errorf("%w: %v", ErrInternalError, getErr)
 	}
 
 	// Decrement blob ref count if object has content
@@ -650,21 +653,22 @@ func (s *ObjectService) CopyObject(ctx context.Context, input CopyObjectInput) (
 
 	// Get source object
 	var sourceObj *domain.Object
+	var getErr error
 	if input.SourceVersionID != "" && input.SourceVersionID != "null" {
-		versionUUID, err := uuid.Parse(input.SourceVersionID)
-		if err != nil {
+		versionUUID, parseErr := uuid.Parse(input.SourceVersionID)
+		if parseErr != nil {
 			return nil, domain.ErrInvalidVersionID
 		}
-		sourceObj, err = s.objectRepo.GetByKeyAndVersion(ctx, sourceBucket.ID, input.SourceKey, versionUUID)
+		sourceObj, getErr = s.objectRepo.GetByKeyAndVersion(ctx, sourceBucket.ID, input.SourceKey, versionUUID)
 	} else {
-		sourceObj, err = s.objectRepo.GetByKey(ctx, sourceBucket.ID, input.SourceKey)
+		sourceObj, getErr = s.objectRepo.GetByKey(ctx, sourceBucket.ID, input.SourceKey)
 	}
 
-	if err != nil {
-		if errors.Is(err, domain.ErrObjectNotFound) {
+	if getErr != nil {
+		if errors.Is(getErr, domain.ErrObjectNotFound) {
 			return nil, domain.ErrObjectNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", ErrInternalError, err)
+		return nil, fmt.Errorf("%w: %v", ErrInternalError, getErr)
 	}
 
 	if sourceObj.IsDeleteMarker || sourceObj.ContentHash == nil {

@@ -57,7 +57,7 @@ func ParseSignV4(authHeader string) (*SignedValues, error) {
 
 	// Extract credential
 	credentialMatch := credentialRegex.FindStringSubmatch(authHeader)
-	if credentialMatch == nil || len(credentialMatch) < 5 {
+	if len(credentialMatch) < 5 {
 		return nil, fmt.Errorf("%w: invalid credential format", ErrInvalidAuthorizationHeader)
 	}
 
@@ -69,7 +69,7 @@ func ParseSignV4(authHeader string) (*SignedValues, error) {
 
 	// Extract signed headers
 	signedHeadersMatch := signedHeadersRegex.FindStringSubmatch(authHeader)
-	if signedHeadersMatch == nil || len(signedHeadersMatch) < 2 {
+	if len(signedHeadersMatch) < 2 {
 		return nil, fmt.Errorf("%w: missing signed headers", ErrInvalidAuthorizationHeader)
 	}
 	signedHeaders := strings.Split(signedHeadersMatch[1], ";")
@@ -86,7 +86,7 @@ func ParseSignV4(authHeader string) (*SignedValues, error) {
 
 	// Extract signature
 	signatureMatch := signatureRegex.FindStringSubmatch(authHeader)
-	if signatureMatch == nil || len(signatureMatch) < 2 {
+	if len(signatureMatch) < 2 {
 		return nil, fmt.Errorf("%w: missing or invalid signature", ErrInvalidAuthorizationHeader)
 	}
 

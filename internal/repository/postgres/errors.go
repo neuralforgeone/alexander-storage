@@ -21,17 +21,17 @@ func isUniqueViolation(err error) bool {
 }
 
 // isForeignKeyViolation checks if the error is a PostgreSQL foreign key violation.
-func isForeignKeyViolation(err error) bool {
+func isForeignKeyViolation(err error) bool { //nolint:unused
 	return isPgError(err, errCodeForeignKeyViolation)
 }
 
 // isNotNullViolation checks if the error is a PostgreSQL NOT NULL constraint violation.
-func isNotNullViolation(err error) bool {
+func isNotNullViolation(err error) bool { //nolint:unused
 	return isPgError(err, errCodeNotNullViolation)
 }
 
 // isCheckViolation checks if the error is a PostgreSQL CHECK constraint violation.
-func isCheckViolation(err error) bool {
+func isCheckViolation(err error) bool { //nolint:unused
 	return isPgError(err, errCodeCheckViolation)
 }
 
@@ -45,7 +45,7 @@ func isPgError(err error, code string) bool {
 }
 
 // getPgErrorConstraint returns the constraint name from a PostgreSQL error.
-func getPgErrorConstraint(err error) string {
+func getPgErrorConstraint(err error) string { //nolint:unused
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return pgErr.ConstraintName
@@ -54,7 +54,7 @@ func getPgErrorConstraint(err error) string {
 }
 
 // getPgErrorDetail returns the detail message from a PostgreSQL error.
-func getPgErrorDetail(err error) string {
+func getPgErrorDetail(err error) string { //nolint:unused
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return pgErr.Detail

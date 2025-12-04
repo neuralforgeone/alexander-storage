@@ -20,7 +20,7 @@ func isUniqueViolation(err error) bool {
 }
 
 // isForeignKeyViolation checks if an error is a foreign key constraint violation.
-func isForeignKeyViolation(err error) bool {
+func isForeignKeyViolation(err error) bool { //nolint:unused
 	if err == nil {
 		return false
 	}

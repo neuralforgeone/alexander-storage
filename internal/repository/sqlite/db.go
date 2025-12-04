@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -71,17 +70,10 @@ type DB struct {
 // NewDB creates a new SQLite database connection.
 func NewDB(ctx context.Context, cfg Config, logger zerolog.Logger) (*DB, error) {
 	// Build connection string with pragmas
-	connStr := cfg.Path
-	if cfg.Path != ":memory:" {
-		// Ensure directory exists
-		dir := filepath.Dir(cfg.Path)
-		if dir != "." && dir != "" {
-			// Directory creation should be handled by caller
-		}
-	}
+	// Note: Directory creation should be handled by caller
 
 	// Add pragmas to connection string
-	connStr = fmt.Sprintf(
+	connStr := fmt.Sprintf(
 		"%s?_journal_mode=%s&_busy_timeout=%d&_cache_size=%d&_synchronous=%s&_foreign_keys=ON",
 		cfg.Path,
 		cfg.JournalMode,

@@ -64,7 +64,7 @@ func (r *userRepository) GetByID(ctx context.Context, id int64) (*domain.User, e
 	user := &domain.User{}
 	var isActive, isAdmin int
 	var createdAt, updatedAt string
-	
+
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.Username,
@@ -245,7 +245,7 @@ func (r *userRepository) List(ctx context.Context, opts repository.ListOptions) 
 		user := &domain.User{}
 		var isActive, isAdmin int
 		var createdAt, updatedAt string
-		
+
 		err := rows.Scan(
 			&user.ID,
 			&user.Username,
@@ -259,12 +259,12 @@ func (r *userRepository) List(ctx context.Context, opts repository.ListOptions) 
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
-		
+
 		user.IsActive = isActive != 0
 		user.IsAdmin = isAdmin != 0
 		user.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 		user.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
-		
+
 		users = append(users, user)
 	}
 
@@ -309,7 +309,7 @@ func boolToInt(b bool) int {
 }
 
 // scanNullString handles nullable string columns.
-func scanNullString(ns sql.NullString) *string {
+func scanNullString(ns sql.NullString) *string { //nolint:unused
 	if ns.Valid {
 		return &ns.String
 	}

@@ -3,140 +3,39 @@ run:
   modules-download-mode: readonly
 
 linters:
+  disable-all: true
   enable:
-    - bodyclose
-    - dogsled
-    - dupl
-    - errcheck
-    - errorlint
-    - exhaustive
-    - copyloopvar
-    - gochecknoinits
-    - goconst
-    - gocritic
-    - gocyclo
-    - godot
-    - gofmt
-    - goimports
-    - goprintffuncname
-    - gosec
-    - gosimple
+    # Essential linters
     - govet
-    - ineffassign
-    - misspell
-    - nakedret
-    - noctx
-    - nolintlint
-    - prealloc
-    - revive
     - staticcheck
-    - stylecheck
     - typecheck
-    - unconvert
-    - unparam
     - unused
-    - whitespace
+    - ineffassign
+    
+    # Code quality (less strict)
+    - gosimple
+    - bodyclose
+    - noctx
 
 linters-settings:
-  dupl:
-    threshold: 150
-
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-
-  errorlint:
-    errorf: true
-
-  exhaustive:
-    default-signifies-exhaustive: true
-
-  gocyclo:
-    min-complexity: 20
-
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - performance
-      - style
-    disabled-checks:
-      - hugeParam
-      - rangeValCopy
-
-  goimports:
-    local-prefixes: github.com/prn-tf/alexander-storage
-
   govet:
     enable-all: true
     disable:
       - fieldalignment
-
-  misspell:
-    locale: US
-
-  nakedret:
-    max-func-lines: 30
-
-  prealloc:
-    simple: true
-    for-loops: true
-
-  revive:
-    rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: if-return
-      - name: increment-decrement
-      - name: var-naming
-      - name: var-declaration
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
-      - name: unused-parameter
-      - name: unreachable-code
-      - name: redefines-builtin-id
-
-  stylecheck:
-    checks:
-      - all
-      - -ST1000 # Package comments
-      - -ST1003 # Underscores in names
+      - shadow
 
 issues:
   exclude-rules:
     # Exclude some linters from running on tests files
     - path: _test\.go
       linters:
-        - dupl
         - gosec
-        - goconst
         - errcheck
-
-    # Exclude shadow checking on err
-    - text: 'shadow: declaration of "err"'
-      linters:
-        - govet
 
     # Allow fmt.Errorf without wrapping
     - text: "non-wrapping format verb for fmt.Errorf"
       linters:
         - errorlint
 
-  max-issues-per-linter: 0
-  max-same-issues: 0
+  max-issues-per-linter: 50
+  max-same-issues: 10

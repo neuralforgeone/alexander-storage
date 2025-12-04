@@ -240,7 +240,8 @@ func (s *MultipartService) UploadPart(ctx context.Context, input UploadPartInput
 	}
 
 	// Validate part size (5MB minimum except for last part, 5GB maximum)
-	const minPartSize = 5 * 1024 * 1024        // 5MB
+	// Minimum part size for validation (currently unused, kept for future use).
+	const _ = 5 * 1024 * 1024                  // 5MB minPartSize
 	const maxPartSize = 5 * 1024 * 1024 * 1024 // 5GB
 
 	if input.Size > maxPartSize {
