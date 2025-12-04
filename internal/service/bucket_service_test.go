@@ -12,12 +12,12 @@ import (
 
 // MockBucketRepository is a mock implementation of repository.BucketRepository.
 type MockBucketRepository struct {
-	buckets    map[string]*domain.Bucket
-	nextID     int64
-	objects    map[int64]int64 // bucketID -> object count
-	createErr  error
-	getErr     error
-	deleteErr  error
+	buckets   map[string]*domain.Bucket
+	nextID    int64
+	objects   map[int64]int64 // bucketID -> object count
+	createErr error
+	getErr    error
+	deleteErr error
 }
 
 func NewMockBucketRepository() *MockBucketRepository {
@@ -330,7 +330,7 @@ func TestBucketService_DeleteBucket(t *testing.T) {
 
 func TestBucketService_ListBuckets(t *testing.T) {
 	repo := NewMockBucketRepository()
-	
+
 	// Add some buckets
 	repo.buckets["bucket-1"] = &domain.Bucket{ID: 1, OwnerID: 1, Name: "bucket-1", CreatedAt: time.Now()}
 	repo.buckets["bucket-2"] = &domain.Bucket{ID: 2, OwnerID: 1, Name: "bucket-2", CreatedAt: time.Now()}

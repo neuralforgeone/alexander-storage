@@ -12,9 +12,9 @@ import (
 
 // Router handles HTTP routing for the S3-compatible API.
 type Router struct {
-	bucketHandler *BucketHandler
+	bucketHandler  *BucketHandler
 	authMiddleware func(http.Handler) http.Handler
-	logger        zerolog.Logger
+	logger         zerolog.Logger
 }
 
 // RouterConfig contains configuration for the router.
