@@ -186,7 +186,7 @@ aws --endpoint-url http://localhost:9000 s3 ls s3://my-bucket/
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.24.0 or later
 - PostgreSQL 14 or later
 - Redis 7 or later (optional, for caching)
 

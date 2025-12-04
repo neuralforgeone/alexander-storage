@@ -506,7 +506,7 @@ alexander-storage/
 
 ### Prerequisites
 
-- Go 1.21+
+- Go 1.24.0+
 - PostgreSQL 14+
 - Redis 7+ (optional)
 
