@@ -27,6 +27,10 @@ var (
 	ErrInvalidPresignedURL   = errors.New("invalid presigned URL")
 	ErrMissingRequiredParams = errors.New("missing required parameters")
 
+	// Bucket errors
+	ErrBucketAccessDenied      = errors.New("access denied to bucket")
+	ErrInvalidVersioningStatus = errors.New("invalid versioning status: must be Enabled or Suspended")
+
 	// General errors
 	ErrEncryptionFailed = errors.New("encryption failed")
 	ErrDecryptionFailed = errors.New("decryption failed")

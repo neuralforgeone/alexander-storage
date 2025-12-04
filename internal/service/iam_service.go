@@ -265,6 +265,13 @@ func (s *IAMService) VerifyAccessKey(ctx context.Context, accessKeyID string) (*
 		return nil, ErrAccessKeyExpired
 	}
 
+	// Get user info for username
+	user, err := s.userRepo.GetByID(ctx, key.UserID)
+	if err != nil {
+		s.logger.Error().Err(err).Int64("user_id", key.UserID).Msg("failed to get user for access key")
+		return nil, fmt.Errorf("%w: %v", ErrInternalError, err)
+	}
+
 	// Decrypt secret key
 	secretKey, err := s.encryptor.DecryptString(key.EncryptedSecret)
 	if err != nil {
@@ -276,6 +283,7 @@ func (s *IAMService) VerifyAccessKey(ctx context.Context, accessKeyID string) (*
 		AccessKeyID: key.AccessKeyID,
 		SecretKey:   secretKey,
 		UserID:      key.UserID,
+		Username:    user.Username,
 		IsActive:    key.Status == domain.AccessKeyStatusActive,
 		ExpiresAt:   key.ExpiresAt,
 	}, nil

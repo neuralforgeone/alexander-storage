@@ -30,6 +30,9 @@ type AccessKeyInfo struct {
 	// UserID is the ID of the user who owns this key.
 	UserID int64
 
+	// Username is the username of the user who owns this key.
+	Username string
+
 	// IsActive indicates if the key is active.
 	IsActive bool
 
@@ -159,6 +162,7 @@ func handleSignedV4(r *http.Request, store AccessKeyStore, config Config) (*Auth
 
 	return &AuthContext{
 		UserID:      keyInfo.UserID,
+		Username:    keyInfo.Username,
 		AccessKeyID: keyInfo.AccessKeyID,
 		Credential:  signedValues.Credential,
 		AuthType:    AuthTypeSignedV4,
@@ -205,6 +209,7 @@ func handlePresignedV4(r *http.Request, store AccessKeyStore, config Config) (*A
 
 	return &AuthContext{
 		UserID:      keyInfo.UserID,
+		Username:    keyInfo.Username,
 		AccessKeyID: keyInfo.AccessKeyID,
 		Credential:  signedValues.Credential,
 		AuthType:    AuthTypePresignedV4,
@@ -236,6 +241,16 @@ func GetAuthContext(ctx context.Context) *AuthContext {
 		return authCtx
 	}
 	return nil
+}
+
+// GetUserContext retrieves user information from the auth context.
+// This is a convenience wrapper that returns UserID and Username.
+func GetUserContext(ctx context.Context) (*AuthContext, bool) {
+	authCtx := GetAuthContext(ctx)
+	if authCtx == nil {
+		return nil, false
+	}
+	return authCtx, true
 }
 
 // RequireAuth is a helper to get auth context or return error.

@@ -131,15 +131,17 @@
 - [x] Presigned URL generation service - `internal/service/presign_service.go`
 - [x] AccessKeyStore adapter for auth middleware integration
 
-### Phase 3: Bucket Operations (Current)
-- [ ] CreateBucket
-- [ ] DeleteBucket
-- [ ] ListBuckets
-- [ ] HeadBucket
-- [ ] GetBucketVersioning
-- [ ] PutBucketVersioning
+### Phase 3: Bucket Operations ✅ COMPLETED
+- [x] CreateBucket - `internal/service/bucket_service.go`, `internal/handler/bucket_handler.go`
+- [x] DeleteBucket - `internal/service/bucket_service.go`, `internal/handler/bucket_handler.go`
+- [x] ListBuckets - `internal/service/bucket_service.go`, `internal/handler/bucket_handler.go`
+- [x] HeadBucket - `internal/service/bucket_service.go`, `internal/handler/bucket_handler.go`
+- [x] GetBucketVersioning - `internal/service/bucket_service.go`, `internal/handler/bucket_handler.go`
+- [x] PutBucketVersioning - `internal/service/bucket_service.go`, `internal/handler/bucket_handler.go`
+- [x] HTTP Router - `internal/handler/router.go`
+- [x] Server Integration - `cmd/alexander-server/main.go`
 
-### Phase 4: Object Operations (Non-Versioned)
+### Phase 4: Object Operations (Non-Versioned) - Current
 - [ ] PutObject (with CAS deduplication)
 - [ ] GetObject
 - [ ] HeadObject

@@ -106,6 +106,9 @@ type AuthContext struct {
 	// UserID is the authenticated user's ID.
 	UserID int64
 
+	// Username is the authenticated user's username.
+	Username string
+
 	// AccessKeyID is the access key used for authentication.
 	AccessKeyID string
 

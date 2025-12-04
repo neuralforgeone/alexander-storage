@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +13,13 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"github.com/prn-tf/alexander-storage/internal/auth"
+	"github.com/prn-tf/alexander-storage/internal/config"
+	"github.com/prn-tf/alexander-storage/internal/handler"
+	"github.com/prn-tf/alexander-storage/internal/pkg/crypto"
+	"github.com/prn-tf/alexander-storage/internal/repository/postgres"
+	"github.com/prn-tf/alexander-storage/internal/service"
 )
 
 // Version information (set at build time)
@@ -32,20 +40,103 @@ func main() {
 		Str("git_commit", GitCommit).
 		Msg("Starting Alexander Storage Server")
 
-	// TODO: Load configuration
-	// TODO: Initialize database connection
-	// TODO: Initialize Redis connection
-	// TODO: Initialize storage backend
-	// TODO: Initialize services
-	// TODO: Initialize HTTP server with routes
+	// Load configuration
+	cfg, err := config.Load("")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load configuration")
+	}
 
-	// Placeholder: Wait for shutdown signal
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	// Set log level
+	level, err := zerolog.ParseLevel(cfg.Logging.Level)
+	if err != nil {
+		level = zerolog.InfoLevel
+	}
+	zerolog.SetGlobalLevel(level)
 
-	fmt.Println("Alexander Storage Server - Implementation in progress")
-	fmt.Println("Press Ctrl+C to exit")
+	// Initialize database connection
+	ctx := context.Background()
+	db, err := postgres.NewDB(ctx, cfg.Database, log.Logger)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to connect to database")
+	}
+	defer db.Close()
 
-	<-ctx.Done()
+	log.Info().Msg("Connected to database")
+
+	// Initialize repositories
+	userRepo := postgres.NewUserRepository(db)
+	accessKeyRepo := postgres.NewAccessKeyRepository(db)
+	bucketRepo := postgres.NewBucketRepository(db)
+
+	// Initialize encryptor
+	encryptionKey, err := cfg.Auth.GetEncryptionKey()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Invalid encryption key")
+	}
+	encryptor, err := crypto.NewEncryptor(encryptionKey)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize encryptor")
+	}
+
+	// Initialize services
+	iamService := service.NewIAMService(accessKeyRepo, userRepo, encryptor, log.Logger)
+	bucketService := service.NewBucketService(bucketRepo, log.Logger)
+
+	// Initialize auth middleware
+	accessKeyStore := service.NewAccessKeyStoreAdapter(iamService)
+	authConfig := auth.Config{
+		Region:         cfg.Auth.Region,
+		Service:        cfg.Auth.Service,
+		AllowAnonymous: false,
+		SkipPaths:      []string{"/health"},
+	}
+	authMiddleware := handler.CreateAuthMiddleware(accessKeyStore, authConfig)
+
+	// Initialize handlers
+	bucketHandler := handler.NewBucketHandler(bucketService, log.Logger)
+
+	// Initialize router
+	router := handler.NewRouter(handler.RouterConfig{
+		BucketHandler:  bucketHandler,
+		AuthMiddleware: authMiddleware,
+		Logger:         log.Logger,
+	})
+
+	// Create HTTP server
+	server := &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
+		Handler:      router.Handler(),
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
+	}
+
+	// Start server in goroutine
+	go func() {
+		log.Info().
+			Int("port", cfg.Server.Port).
+			Str("region", cfg.Auth.Region).
+			Msg("Server listening")
+
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal().Err(err).Msg("Server failed")
+		}
+	}()
+
+	// Wait for shutdown signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	<-sigChan
+
 	log.Info().Msg("Shutting down server...")
+
+	// Graceful shutdown with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Error().Err(err).Msg("Server shutdown error")
+	}
+
+	log.Info().Msg("Server stopped")
 }
