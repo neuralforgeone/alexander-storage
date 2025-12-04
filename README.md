@@ -2,12 +2,22 @@
 
 **A high-performance, S3-compatible object storage server written in Go.**
 
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/prn-tf/alexander-storage)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](https://github.com/prn-tf/alexander-storage)
+[![Go Version](https://img.shields.io/badge/go-1.24-blue)](https://golang.org)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 Alexander Storage is an enterprise-grade object storage system designed for self-hosted environments. It provides full compatibility with the AWS S3 API, allowing you to use existing tools like `aws-cli`, `boto3`, and Terraform without modification.
+
+> **📊 Project Status:** Phase 3 Complete | [View Detailed Status Report](PROJECT_STATUS.md)  
+> **🚀 Current Phase:** Bucket Operations ✅ Complete  
+> **🔨 Next Phase:** Object Operations (Phase 4)
 
 ---
 
 ## Table of Contents
 
+- [Project Status](#project-status)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
@@ -18,6 +28,34 @@ Alexander Storage is an enterprise-grade object storage system designed for self
 - [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Project Status
+
+**Development Phase:** Phase 3 Complete ✅ | Phase 4 Next 🚧
+
+### Implementation Progress
+
+| Phase | Status | Features | Tests |
+|-------|--------|----------|-------|
+| **Phase 1: Core Infrastructure** | ✅ Complete | Database, Domain Models, Storage | - |
+| **Phase 2: IAM & Auth** | ✅ Complete | AWS v4 Signature, Access Keys, Users | - |
+| **Phase 3: Bucket Operations** | ✅ Complete | Create, Delete, List, Versioning Config | 14 passing |
+| **Phase 4: Object Operations** | 🚧 Next | PutObject, GetObject, ListObjects | - |
+| **Phase 5: Versioning** | 📋 Planned | Version Management, Delete Markers | - |
+| **Phase 6: Multipart Upload** | 📋 Planned | Large File Uploads | - |
+| **Phase 7: Operations** | 📋 Planned | Metrics, Health Checks, GC | - |
+| **Phase 8: Advanced Features** | 📋 Future | Policies, Lifecycle, Replication | - |
+
+### Build & Test Status
+
+- **Build:** ✅ All 3 binaries compile successfully
+- **Tests:** ✅ 14/14 passing (BucketService)
+- **Code Quality:** ✅ go vet and go fmt clean
+- **Coverage:** 9.7% (service layer only)
+
+**📊 Detailed Status:** [PROJECT_STATUS.md](PROJECT_STATUS.md) | **🏗️ Architecture:** [MEMORY_BANK.md](MEMORY_BANK.md)
 
 ---
 
@@ -307,38 +345,64 @@ aws --endpoint-url http://localhost:9000 s3api list-object-versions --bucket my-
 
 Alexander implements the following S3 API operations:
 
+> **Legend:** ✅ Implemented | 🚧 In Progress | 📋 Planned | ❌ Not Planned
+
 ### Bucket Operations
 
-| Operation | Status |
-|-----------|--------|
-| CreateBucket | Planned |
-| DeleteBucket | Planned |
-| ListBuckets | Planned |
-| HeadBucket | Planned |
-| GetBucketVersioning | Planned |
-| PutBucketVersioning | Planned |
+| Operation | Status | Notes |
+|-----------|--------|-------|
+| CreateBucket | ✅ Implemented | Region support included |
+| DeleteBucket | ✅ Implemented | Safety checks for non-empty buckets |
+| ListBuckets | ✅ Implemented | Per-user listing |
+| HeadBucket | ✅ Implemented | Existence verification |
+| GetBucketVersioning | ✅ Implemented | Returns versioning status |
+| PutBucketVersioning | ✅ Implemented | Enable/Suspend support |
 
 ### Object Operations
 
-| Operation | Status |
-|-----------|--------|
-| PutObject | Planned |
-| GetObject | Planned |
-| HeadObject | Planned |
-| DeleteObject | Planned |
-| ListObjectsV2 | Planned |
-| CopyObject | Planned |
+| Operation | Status | Notes |
+|-----------|--------|-------|
+| PutObject | 📋 Planned | Phase 4 - CAS deduplication |
+| GetObject | 📋 Planned | Phase 4 - Content streaming |
+| HeadObject | 📋 Planned | Phase 4 - Metadata only |
+| DeleteObject | 📋 Planned | Phase 4 - Ref counting |
+| ListObjectsV2 | 📋 Planned | Phase 4 - Pagination support |
+| ListObjects | 📋 Planned | Phase 4 - Legacy v1 API |
+| CopyObject | 📋 Planned | Phase 4 - Server-side copy |
+
+### Versioning Operations
+
+| Operation | Status | Notes |
+|-----------|--------|-------|
+| PutObject (versioned) | 📋 Planned | Phase 5 - Version creation |
+| GetObject (versionId) | 📋 Planned | Phase 5 - Version retrieval |
+| DeleteObject (delete marker) | 📋 Planned | Phase 5 - Soft delete |
+| DeleteObject (versionId) | 📋 Planned | Phase 5 - Hard delete |
+| ListObjectVersions | 📋 Planned | Phase 5 - All versions |
 
 ### Multipart Upload
 
-| Operation | Status |
-|-----------|--------|
-| CreateMultipartUpload | Planned |
-| UploadPart | Planned |
-| CompleteMultipartUpload | Planned |
-| AbortMultipartUpload | Planned |
-| ListMultipartUploads | Planned |
-| ListParts | Planned |
+| Operation | Status | Notes |
+|-----------|--------|-------|
+| InitiateMultipartUpload | 📋 Planned | Phase 6 - Start upload |
+| UploadPart | 📋 Planned | Phase 6 - Upload part |
+| CompleteMultipartUpload | 📋 Planned | Phase 6 - Finalize |
+| AbortMultipartUpload | 📋 Planned | Phase 6 - Cancel upload |
+| ListMultipartUploads | 📋 Planned | Phase 6 - List active uploads |
+| ListParts | 📋 Planned | Phase 6 - List uploaded parts |
+
+### Advanced Features
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Bucket Policies | ❌ Not Planned | Future consideration |
+| Object ACLs | ❌ Not Planned | Use IAM instead |
+| Lifecycle Rules | 📋 Planned | Phase 8 - Auto-expiration |
+| Server-Side Encryption | 📋 Planned | Phase 8 - At-rest encryption |
+| Object Locking (WORM) | 📋 Planned | Phase 8 - Compliance mode |
+| Cross-Region Replication | 📋 Planned | Phase 8 - Multi-region |
+
+**📖 For detailed implementation status, see [PROJECT_STATUS.md](PROJECT_STATUS.md)**
 
 ---
 
