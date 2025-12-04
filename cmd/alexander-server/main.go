@@ -71,6 +71,7 @@ func main() {
 	bucketRepo := postgres.NewBucketRepository(db)
 	objectRepo := postgres.NewObjectRepository(db)
 	blobRepo := postgres.NewBlobRepository(db)
+	multipartRepo := postgres.NewMultipartRepository(db)
 
 	// Initialize encryptor
 	encryptionKey, err := cfg.Auth.GetEncryptionKey()
@@ -83,7 +84,7 @@ func main() {
 	}
 
 	// Initialize storage backend
-	storageBackend, err := initStorageBackend(cfg)
+	storageBackend, err := initStorageBackend(cfg, log.Logger)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize storage backend")
 	}
@@ -91,7 +92,8 @@ func main() {
 	// Initialize services
 	iamService := service.NewIAMService(accessKeyRepo, userRepo, encryptor, log.Logger)
 	bucketService := service.NewBucketService(bucketRepo, log.Logger)
-	objectService := service.NewObjectService(bucketRepo, objectRepo, blobRepo, storageBackend, log.Logger)
+	objectService := service.NewObjectService(objectRepo, blobRepo, bucketRepo, storageBackend, log.Logger)
+	multipartService := service.NewMultipartService(multipartRepo, objectRepo, blobRepo, bucketRepo, storageBackend, log.Logger)
 
 	// Initialize auth middleware
 	accessKeyStore := service.NewAccessKeyStoreAdapter(iamService)
@@ -106,13 +108,15 @@ func main() {
 	// Initialize handlers
 	bucketHandler := handler.NewBucketHandler(bucketService, log.Logger)
 	objectHandler := handler.NewObjectHandler(objectService, log.Logger)
+	multipartHandler := handler.NewMultipartHandler(multipartService, log.Logger)
 
 	// Initialize router
 	router := handler.NewRouter(handler.RouterConfig{
-		BucketHandler:  bucketHandler,
-		ObjectHandler:  objectHandler,
-		AuthMiddleware: authMiddleware,
-		Logger:         log.Logger,
+		BucketHandler:    bucketHandler,
+		ObjectHandler:    objectHandler,
+		MultipartHandler: multipartHandler,
+		AuthMiddleware:   authMiddleware,
+		Logger:           log.Logger,
 	})
 
 	// Create HTTP server
@@ -155,8 +159,11 @@ func main() {
 }
 
 // initStorageBackend initializes the storage backend based on configuration.
-func initStorageBackend(cfg *config.Config) (storage.Backend, error) {
+func initStorageBackend(cfg *config.Config, logger zerolog.Logger) (storage.Backend, error) {
 	// For now, we only support filesystem backend
 	// TODO: Add support for other backends (S3, Azure Blob, etc.)
-	return filesystem.NewStorage(cfg.Storage.DataDir)
+	return filesystem.NewStorage(filesystem.Config{
+		DataDir: cfg.Storage.DataDir,
+		TempDir: cfg.Storage.TempDir,
+	}, logger)
 }

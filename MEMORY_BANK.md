@@ -141,29 +141,43 @@
 - [x] HTTP Router - `internal/handler/router.go`
 - [x] Server Integration - `cmd/alexander-server/main.go`
 
-### Phase 4: Object Operations (Non-Versioned) - Current
-- [ ] PutObject (with CAS deduplication)
-- [ ] GetObject
-- [ ] HeadObject
-- [ ] DeleteObject
-- [ ] ListObjects (v1)
-- [ ] ListObjectsV2
-- [ ] CopyObject
+### Phase 4: Object Operations ✅ COMPLETED
+- [x] PutObject (with CAS deduplication) - `internal/service/object_service.go`, `internal/handler/object_handler.go`
+- [x] GetObject - `internal/service/object_service.go`, `internal/handler/object_handler.go`
+- [x] HeadObject - `internal/service/object_service.go`, `internal/handler/object_handler.go`
+- [x] DeleteObject - `internal/service/object_service.go`, `internal/handler/object_handler.go`
+- [x] ListObjects (v1) - `internal/service/object_service.go`, `internal/handler/object_handler.go`
+- [x] ListObjectsV2 - `internal/service/object_service.go`, `internal/handler/object_handler.go`
+- [x] CopyObject - `internal/service/object_service.go`, `internal/handler/object_handler.go`
+- [x] Router Integration - `internal/handler/router.go`
+- [x] Server Integration - `cmd/alexander-server/main.go`
 
-### Phase 5: Versioning
-- [ ] PutObject with version creation
-- [ ] GetObject with versionId
-- [ ] DeleteObject (create delete marker)
-- [ ] DeleteObject with versionId
-- [ ] ListObjectVersions
+### Phase 5: Versioning ✅ COMPLETED
+- [x] PutObject with version creation - Versioning enabled bucket'larda yeni version oluşturulur
+- [x] GetObject with versionId - `?versionId=xxx` query parametresi ile belirli version getirme
+- [x] DeleteObject (create delete marker) - Versioning enabled bucket'larda delete marker oluşturma
+- [x] DeleteObject with versionId - Belirli version'ı permanent silme
+- [x] ListObjectVersions - `GET /{bucket}?versions` endpoint'i
 
-### Phase 6: Multipart Upload
+### Phase 6: Multipart Upload ⚠️ HIGH PRIORITY - Current
+> **Community Feedback**: "Without multipart uploads, large files can't be uploaded reliably. This is critical for S3 compatibility."
+
 - [ ] InitiateMultipartUpload
 - [ ] UploadPart
 - [ ] CompleteMultipartUpload
 - [ ] AbortMultipartUpload
 - [ ] ListMultipartUploads
 - [ ] ListParts
+
+**API Design Preview:**
+```
+POST /bucket/key?uploads                    → InitiateMultipartUpload
+PUT  /bucket/key?partNumber=N&uploadId=X    → UploadPart
+POST /bucket/key?uploadId=X                 → CompleteMultipartUpload
+DELETE /bucket/key?uploadId=X               → AbortMultipartUpload
+GET  /bucket?uploads                        → ListMultipartUploads
+GET  /bucket/key?uploadId=X                 → ListParts
+```
 
 ### Phase 7: Operations & Observability
 - [ ] Garbage collection for orphan blobs
@@ -172,7 +186,14 @@
 - [ ] Request tracing
 - [ ] Rate limiting
 
-### Phase 8: Advanced Features (Future)
+### Phase 8: Architecture Improvements (Community Requested)
+> **Community Feedback**: "PostgreSQL + Redis is overkill for single-node deployments."
+
+- [ ] Embedded database support (SQLite or BadgerDB)
+- [ ] Memory-based locking for single-node mode (eliminate Redis dependency)
+- [ ] Single binary deployment mode
+
+### Phase 9: Advanced Features (Future)
 - [ ] Bucket policies
 - [ ] Object lifecycle rules
 - [ ] Cross-region replication
@@ -330,55 +351,93 @@ Path: /data/ab/cd/abcdef1234567890...
 
 ---
 
+### Decision 8: Optional Redis for Single-Node Deployments
+
+**Date**: 2025-12-04  
+**Status**: ✅ Approved (Documentation Updated)  
+
+**Context**: Community feedback that PostgreSQL + Redis is "overkill" for simple homelab deployments.
+
+**Decision**: Make Redis optional. Single-node deployments use in-memory locking.
+
+**Rationale**:
+- **Simpler Deployment**: `docker run` with just PostgreSQL
+- **Lower Resource Usage**: No Redis process for small deployments
+- **Scalability Path**: Redis enabled for cluster/HA deployments
+
+**Implementation**:
+- `internal/lock` interface abstraction
+- `MemoryLocker` for single-node (sync.Mutex)
+- `RedisLocker` for distributed deployments
+- Config flag: `storage.distributed_mode: true|false`
+
+---
+
+### Decision 9: Future Embedded Database Support
+
+**Date**: 2025-12-04  
+**Status**: 🔜 Planned  
+
+**Context**: Community feedback requesting "zero-dependency" single-binary deployment.
+
+**Decision**: Add SQLite or BadgerDB as alternative metadata backend (Phase 8).
+
+**Rationale**:
+- **True Zero-Dependency**: Single binary, no external services
+- **Homelab Friendly**: `./alexander-server` just works
+- **Edge Deployments**: IoT, embedded systems, air-gapped networks
+
+**Implementation Plan**:
+- Repository interface already supports this (abstraction exists)
+- Add `internal/repository/sqlite/` or `internal/repository/badger/`
+- Config: `database.driver: postgres|sqlite|badger`
+
+**Trade-offs**:
+- SQLite: Limited concurrent writes, but excellent for read-heavy archival
+- BadgerDB: Better write performance, Go-native, but less tooling
+
+---
+
 ## Section 4: Current Context
 
 ### Active Development Phase
-**Phase 3: Bucket Operations**
+**Phase 6: Multipart Upload**
 
 ### Current Task
-Implementing bucket service and handlers for S3-compatible bucket operations
+Implementing S3-compatible multipart upload for large files
 
 ### Last Updated
 2025-12-04
 
+### Completed Phases
+- ✅ Phase 1: Core Infrastructure
+- ✅ Phase 2: IAM & Authentication
+- ✅ Phase 3: Bucket Operations
+- ✅ Phase 4: Object Operations
+- ✅ Phase 5: Versioning
+
 ### Files Modified This Session
-- `go.mod` - Project module definition
-- `Makefile` - Build and development commands
-- `Dockerfile` - Container build definition
-- `.gitignore` - Git ignore rules
-- `configs/config.yaml.example` - Configuration template
-- `configs/docker-compose.yaml` - Local development stack
-- `cmd/alexander-server/main.go` - Server entry point
-- `cmd/alexander-admin/main.go` - Admin CLI entry point
-- `cmd/alexander-migrate/main.go` - Migration tool entry point
-- `MEMORY_BANK.md` - This file
-- `migrations/postgres/000001_init.up.sql` - Database schema
-- `migrations/postgres/000001_init.down.sql` - Schema rollback
-- `internal/domain/*.go` - Domain models (7 files)
-- `internal/pkg/crypto/*.go` - Crypto utilities (3 files)
-- `internal/storage/*.go` - Storage interfaces (3 files)
-- `internal/storage/filesystem/storage.go` - Filesystem storage implementation
-- `internal/repository/*.go` - Repository interfaces (3 files)
-- `internal/repository/postgres/*.go` - PostgreSQL repositories (8 files)
-- `internal/cache/redis/*.go` - Redis cache implementation (2 files)
-- `internal/config/config.go` - Configuration loading with Viper
-- `internal/auth/*.go` - Auth middleware and AWS v4 signature (6 files)
-- `internal/service/errors.go` - Service layer error definitions
-- `internal/service/user_service.go` - User management service
-- `internal/service/iam_service.go` - IAM/access key management service
-- `internal/service/presign_service.go` - Presigned URL generation service
+- `internal/service/object_service.go` - Added ListObjectVersions, fixed versioning logic
+- `internal/service/object_service_test.go` - Added versioning unit tests
+- `internal/handler/object_handler.go` - Added ListObjectVersions handler and XML types
+- `internal/handler/router.go` - Added `?versions` route
+- `MEMORY_BANK.md` - Updated with Phase 5 completion
 
 ### Pending Tasks
-1. Implement BucketService (`internal/service/bucket_service.go`)
-2. Create HTTP handlers for bucket operations
-3. Wire services with chi router
-4. Add integration tests for bucket operations
+1. Multipart upload support (Phase 6 - HIGH PRIORITY)
+2. Add embedded database option (Phase 8)
 
 ### Known Issues
 None currently.
 
-### Technical Debt
-None currently.
+### Community Feedback Addressed
+- [x] Added "Best for: Archival, Backups, Homelabs" to README
+- [x] Added Mermaid architecture diagrams
+- [x] Clarified io.TeeReader streaming hash in docs
+- [x] Marked Multipart Upload as HIGH PRIORITY
+- [x] Documented Redis as optional for single-node
+- [x] Added future SQLite/BadgerDB support to roadmap
+- [x] Added benchmark section placeholder
 
 ---
 

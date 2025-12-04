@@ -12,27 +12,30 @@ import (
 
 // Router handles HTTP routing for the S3-compatible API.
 type Router struct {
-	bucketHandler  *BucketHandler
-	objectHandler  *ObjectHandler
-	authMiddleware func(http.Handler) http.Handler
-	logger         zerolog.Logger
+	bucketHandler    *BucketHandler
+	objectHandler    *ObjectHandler
+	multipartHandler *MultipartHandler
+	authMiddleware   func(http.Handler) http.Handler
+	logger           zerolog.Logger
 }
 
 // RouterConfig contains configuration for the router.
 type RouterConfig struct {
-	BucketHandler  *BucketHandler
-	ObjectHandler  *ObjectHandler
-	AuthMiddleware func(http.Handler) http.Handler
-	Logger         zerolog.Logger
+	BucketHandler    *BucketHandler
+	ObjectHandler    *ObjectHandler
+	MultipartHandler *MultipartHandler
+	AuthMiddleware   func(http.Handler) http.Handler
+	Logger           zerolog.Logger
 }
 
 // NewRouter creates a new Router.
 func NewRouter(config RouterConfig) *Router {
 	return &Router{
-		bucketHandler:  config.BucketHandler,
-		objectHandler:  config.ObjectHandler,
-		authMiddleware: config.AuthMiddleware,
-		logger:         config.Logger.With().Str("component", "router").Logger(),
+		bucketHandler:    config.BucketHandler,
+		objectHandler:    config.ObjectHandler,
+		multipartHandler: config.MultipartHandler,
+		authMiddleware:   config.AuthMiddleware,
+		logger:           config.Logger.With().Str("component", "router").Logger(),
 	}
 }
 
@@ -115,6 +118,34 @@ func (rt *Router) handleBucketRequest(w http.ResponseWriter, r *http.Request, bu
 		return
 	}
 
+	// Check for versions sub-resource (ListObjectVersions)
+	if _, ok := query["versions"]; ok {
+		if r.Method == http.MethodGet {
+			rt.objectHandler.ListObjectVersions(w, r, bucketName)
+			return
+		}
+		writeError(w, S3Error{
+			Code:           "MethodNotAllowed",
+			Message:        "The specified method is not allowed against this resource.",
+			HTTPStatusCode: http.StatusMethodNotAllowed,
+		})
+		return
+	}
+
+	// Check for uploads sub-resource (ListMultipartUploads)
+	if _, ok := query["uploads"]; ok {
+		if r.Method == http.MethodGet {
+			rt.multipartHandler.ListMultipartUploads(w, r, bucketName)
+			return
+		}
+		writeError(w, S3Error{
+			Code:           "MethodNotAllowed",
+			Message:        "The specified method is not allowed against this resource.",
+			HTTPStatusCode: http.StatusMethodNotAllowed,
+		})
+		return
+	}
+
 	// TODO: Add more sub-resources (lifecycle, policy, acl, etc.)
 
 	// Basic bucket operations
@@ -142,22 +173,53 @@ func (rt *Router) handleBucketRequest(w http.ResponseWriter, r *http.Request, bu
 func (rt *Router) handleObjectRequest(w http.ResponseWriter, r *http.Request, bucketName, objectKey string) {
 	query := r.URL.Query()
 
+	// Check for multipart upload operations
+	uploadID := query.Get("uploadId")
+	_, hasUploads := query["uploads"]
+
+	// InitiateMultipartUpload: POST /{bucket}/{key}?uploads
+	if hasUploads && r.Method == http.MethodPost {
+		rt.multipartHandler.InitiateMultipartUpload(w, r, bucketName, objectKey)
+		return
+	}
+
+	// Operations that require uploadId
+	if uploadID != "" {
+		switch r.Method {
+		case http.MethodPut:
+			// UploadPart: PUT /{bucket}/{key}?partNumber=N&uploadId=X
+			rt.multipartHandler.UploadPart(w, r, bucketName, objectKey)
+			return
+		case http.MethodPost:
+			// CompleteMultipartUpload: POST /{bucket}/{key}?uploadId=X
+			rt.multipartHandler.CompleteMultipartUpload(w, r, bucketName, objectKey)
+			return
+		case http.MethodDelete:
+			// AbortMultipartUpload: DELETE /{bucket}/{key}?uploadId=X
+			rt.multipartHandler.AbortMultipartUpload(w, r, bucketName, objectKey)
+			return
+		case http.MethodGet:
+			// ListParts: GET /{bucket}/{key}?uploadId=X
+			rt.multipartHandler.ListParts(w, r, bucketName, objectKey)
+			return
+		}
+	}
+
+	// Standard object operations
 	switch r.Method {
 	case http.MethodGet:
-		rt.objectHandler.HandleGetObject(w, r, bucketName, objectKey)
+		rt.objectHandler.GetObject(w, r, bucketName, objectKey)
 	case http.MethodHead:
-		rt.objectHandler.HandleHeadObject(w, r, bucketName, objectKey)
+		rt.objectHandler.HeadObject(w, r, bucketName, objectKey)
 	case http.MethodPut:
 		// Check for copy operation (x-amz-copy-source header)
 		if r.Header.Get("x-amz-copy-source") != "" {
-			rt.objectHandler.HandleCopyObject(w, r, bucketName, objectKey)
+			rt.objectHandler.CopyObject(w, r, bucketName, objectKey)
 			return
 		}
-		rt.objectHandler.HandlePutObject(w, r, bucketName, objectKey)
+		rt.objectHandler.PutObject(w, r, bucketName, objectKey)
 	case http.MethodDelete:
-		// Check for versionId query parameter
-		versionID := query.Get("versionId")
-		rt.objectHandler.HandleDeleteObject(w, r, bucketName, objectKey, versionID)
+		rt.objectHandler.DeleteObject(w, r, bucketName, objectKey)
 	default:
 		writeError(w, S3Error{
 			Code:           "MethodNotAllowed",
@@ -173,12 +235,12 @@ func (rt *Router) handleListObjects(w http.ResponseWriter, r *http.Request, buck
 
 	// Check for list-type=2 (ListObjectsV2)
 	if query.Get("list-type") == "2" {
-		rt.objectHandler.HandleListObjectsV2(w, r, bucketName)
+		rt.objectHandler.ListObjectsV2(w, r, bucketName)
 		return
 	}
 
 	// ListObjectsV1
-	rt.objectHandler.HandleListObjects(w, r, bucketName)
+	rt.objectHandler.ListObjects(w, r, bucketName)
 }
 
 // CreateAuthMiddleware creates an authentication middleware using the provided store.

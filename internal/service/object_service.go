@@ -181,6 +181,52 @@ type CopyObjectOutput struct {
 	VersionID    string
 }
 
+// ListObjectVersionsInput contains the data needed to list object versions.
+type ListObjectVersionsInput struct {
+	BucketName      string
+	Prefix          string
+	Delimiter       string
+	KeyMarker       string
+	VersionIDMarker string
+	MaxKeys         int
+	OwnerID         int64
+}
+
+// ListObjectVersionsOutput contains the result of listing object versions.
+type ListObjectVersionsOutput struct {
+	Name                string
+	Prefix              string
+	Delimiter           string
+	KeyMarker           string
+	VersionIDMarker     string
+	NextKeyMarker       string
+	NextVersionIDMarker string
+	MaxKeys             int
+	IsTruncated         bool
+	Versions            []ObjectVersionInfo
+	DeleteMarkers       []DeleteMarkerInfo
+	CommonPrefixes      []string
+}
+
+// ObjectVersionInfo represents a version in list output.
+type ObjectVersionInfo struct {
+	Key          string
+	VersionID    string
+	IsLatest     bool
+	LastModified time.Time
+	ETag         string
+	Size         int64
+	StorageClass domain.StorageClass
+}
+
+// DeleteMarkerInfo represents a delete marker in list output.
+type DeleteMarkerInfo struct {
+	Key          string
+	VersionID    string
+	IsLatest     bool
+	LastModified time.Time
+}
+
 // =============================================================================
 // Service Methods
 // =============================================================================
@@ -233,15 +279,18 @@ func (s *ObjectService) PutObject(ctx context.Context, input PutObjectInput) (*P
 		contentType = "application/octet-stream"
 	}
 
-	// For non-versioned buckets, mark existing object as not latest
-	if bucket.Versioning != domain.VersioningEnabled {
-		// Get existing object to decrement its blob ref_count
+	// Handle versioning logic
+	if bucket.IsVersioningEnabled() {
+		// Versioning is enabled: mark existing latest as not latest (keep all versions)
+		_ = s.objectRepo.MarkNotLatest(ctx, bucket.ID, input.Key)
+	} else {
+		// Non-versioned or suspended: replace existing object
 		existingObj, err := s.objectRepo.GetByKey(ctx, bucket.ID, input.Key)
 		if err == nil && existingObj.ContentHash != nil {
 			// Decrement ref count for old blob
 			_, _ = s.blobRepo.DecrementRef(ctx, *existingObj.ContentHash)
 		}
-		// Mark existing as not latest (or delete for non-versioned)
+		// Mark existing as not latest
 		_ = s.objectRepo.MarkNotLatest(ctx, bucket.ID, input.Key)
 	}
 
@@ -439,6 +488,7 @@ func (s *ObjectService) DeleteObject(ctx context.Context, input DeleteObjectInpu
 
 		return &DeleteObjectOutput{
 			DeleteMarker:          true,
+			VersionID:             deleteMarker.GetVersionIDString(),
 			DeleteMarkerVersionID: deleteMarker.GetVersionIDString(),
 		}, nil
 	}
@@ -709,4 +759,87 @@ func decodeContinuationToken(token string) string {
 // RangeReader is an interface for storage backends that support range reads.
 type RangeReader interface {
 	RetrieveRange(ctx context.Context, contentHash string, offset, length int64) (io.ReadCloser, error)
+}
+
+// ListObjectVersions lists all versions of objects in a bucket.
+func (s *ObjectService) ListObjectVersions(ctx context.Context, input ListObjectVersionsInput) (*ListObjectVersionsOutput, error) {
+	// Get bucket
+	bucket, err := s.bucketRepo.GetByName(ctx, input.BucketName)
+	if err != nil {
+		if errors.Is(err, domain.ErrBucketNotFound) {
+			return nil, domain.ErrBucketNotFound
+		}
+		return nil, fmt.Errorf("%w: %v", ErrInternalError, err)
+	}
+
+	// Check ownership
+	if input.OwnerID > 0 && bucket.OwnerID != input.OwnerID {
+		return nil, ErrBucketAccessDenied
+	}
+
+	// Set defaults
+	maxKeys := input.MaxKeys
+	if maxKeys <= 0 {
+		maxKeys = 1000
+	}
+	if maxKeys > 1000 {
+		maxKeys = 1000
+	}
+
+	// List versions from repository
+	result, err := s.objectRepo.ListVersions(ctx, bucket.ID, repository.ObjectListOptions{
+		Prefix:     input.Prefix,
+		Delimiter:  input.Delimiter,
+		StartAfter: input.KeyMarker,
+		MaxKeys:    maxKeys,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInternalError, err)
+	}
+
+	// Convert versions to output format
+	versions := make([]ObjectVersionInfo, len(result.Versions))
+	for i, ver := range result.Versions {
+		versions[i] = ObjectVersionInfo{
+			Key:          ver.Key,
+			VersionID:    ver.VersionID,
+			IsLatest:     ver.IsLatest,
+			LastModified: ver.LastModified,
+			ETag:         ver.ETag,
+			Size:         ver.Size,
+			StorageClass: ver.StorageClass,
+		}
+	}
+
+	// Convert delete markers to output format
+	deleteMarkers := make([]DeleteMarkerInfo, len(result.DeleteMarkers))
+	for i, dm := range result.DeleteMarkers {
+		deleteMarkers[i] = DeleteMarkerInfo{
+			Key:          dm.Key,
+			VersionID:    dm.VersionID,
+			IsLatest:     dm.IsLatest,
+			LastModified: dm.LastModified,
+		}
+	}
+
+	output := &ListObjectVersionsOutput{
+		Name:            input.BucketName,
+		Prefix:          input.Prefix,
+		Delimiter:       input.Delimiter,
+		KeyMarker:       input.KeyMarker,
+		VersionIDMarker: input.VersionIDMarker,
+		MaxKeys:         maxKeys,
+		IsTruncated:     result.IsTruncated,
+		Versions:        versions,
+		DeleteMarkers:   deleteMarkers,
+		CommonPrefixes:  result.CommonPrefixes,
+	}
+
+	// Set next markers if truncated
+	if result.IsTruncated {
+		output.NextKeyMarker = result.NextKeyMarker
+		output.NextVersionIDMarker = result.NextVersionIDMarker
+	}
+
+	return output, nil
 }

@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/rs/zerolog"
 
@@ -39,34 +38,34 @@ func NewObjectHandler(objectService *service.ObjectService, logger zerolog.Logge
 
 // ListBucketResult is the response for ListObjects (v1).
 type ListBucketResult struct {
-	XMLName        xml.Name        `xml:"ListBucketResult"`
-	Xmlns          string          `xml:"xmlns,attr"`
-	Name           string          `xml:"Name"`
-	Prefix         string          `xml:"Prefix"`
-	Marker         string          `xml:"Marker,omitempty"`
-	MaxKeys        int             `xml:"MaxKeys"`
-	Delimiter      string          `xml:"Delimiter,omitempty"`
-	IsTruncated    bool            `xml:"IsTruncated"`
-	Contents       []S3Object      `xml:"Contents,omitempty"`
-	CommonPrefixes []CommonPrefix  `xml:"CommonPrefixes,omitempty"`
-	NextMarker     string          `xml:"NextMarker,omitempty"`
+	XMLName        xml.Name       `xml:"ListBucketResult"`
+	Xmlns          string         `xml:"xmlns,attr"`
+	Name           string         `xml:"Name"`
+	Prefix         string         `xml:"Prefix"`
+	Marker         string         `xml:"Marker,omitempty"`
+	MaxKeys        int            `xml:"MaxKeys"`
+	Delimiter      string         `xml:"Delimiter,omitempty"`
+	IsTruncated    bool           `xml:"IsTruncated"`
+	Contents       []S3Object     `xml:"Contents,omitempty"`
+	CommonPrefixes []CommonPrefix `xml:"CommonPrefixes,omitempty"`
+	NextMarker     string         `xml:"NextMarker,omitempty"`
 }
 
 // ListBucketResultV2 is the response for ListObjectsV2.
 type ListBucketResultV2 struct {
-	XMLName               xml.Name        `xml:"ListBucketResult"`
-	Xmlns                 string          `xml:"xmlns,attr"`
-	Name                  string          `xml:"Name"`
-	Prefix                string          `xml:"Prefix"`
-	StartAfter            string          `xml:"StartAfter,omitempty"`
-	ContinuationToken     string          `xml:"ContinuationToken,omitempty"`
-	NextContinuationToken string          `xml:"NextContinuationToken,omitempty"`
-	MaxKeys               int             `xml:"MaxKeys"`
-	Delimiter             string          `xml:"Delimiter,omitempty"`
-	IsTruncated           bool            `xml:"IsTruncated"`
-	Contents              []S3Object      `xml:"Contents,omitempty"`
-	CommonPrefixes        []CommonPrefix  `xml:"CommonPrefixes,omitempty"`
-	KeyCount              int             `xml:"KeyCount"`
+	XMLName               xml.Name       `xml:"ListBucketResult"`
+	Xmlns                 string         `xml:"xmlns,attr"`
+	Name                  string         `xml:"Name"`
+	Prefix                string         `xml:"Prefix"`
+	StartAfter            string         `xml:"StartAfter,omitempty"`
+	ContinuationToken     string         `xml:"ContinuationToken,omitempty"`
+	NextContinuationToken string         `xml:"NextContinuationToken,omitempty"`
+	MaxKeys               int            `xml:"MaxKeys"`
+	Delimiter             string         `xml:"Delimiter,omitempty"`
+	IsTruncated           bool           `xml:"IsTruncated"`
+	Contents              []S3Object     `xml:"Contents,omitempty"`
+	CommonPrefixes        []CommonPrefix `xml:"CommonPrefixes,omitempty"`
+	KeyCount              int            `xml:"KeyCount"`
 }
 
 // S3Object represents an object in list responses.
@@ -100,6 +99,43 @@ type DeleteResult struct {
 	VersionID             string   `xml:"VersionId,omitempty"`
 }
 
+// ListVersionsResult is the response for ListObjectVersions.
+type ListVersionsResult struct {
+	XMLName             xml.Name          `xml:"ListVersionsResult"`
+	Xmlns               string            `xml:"xmlns,attr"`
+	Name                string            `xml:"Name"`
+	Prefix              string            `xml:"Prefix"`
+	KeyMarker           string            `xml:"KeyMarker,omitempty"`
+	VersionIdMarker     string            `xml:"VersionIdMarker,omitempty"`
+	NextKeyMarker       string            `xml:"NextKeyMarker,omitempty"`
+	NextVersionIdMarker string            `xml:"NextVersionIdMarker,omitempty"`
+	MaxKeys             int               `xml:"MaxKeys"`
+	Delimiter           string            `xml:"Delimiter,omitempty"`
+	IsTruncated         bool              `xml:"IsTruncated"`
+	Versions            []S3ObjectVersion `xml:"Version,omitempty"`
+	DeleteMarkers       []S3DeleteMarker  `xml:"DeleteMarker,omitempty"`
+	CommonPrefixes      []CommonPrefix    `xml:"CommonPrefixes,omitempty"`
+}
+
+// S3ObjectVersion represents an object version in list versions responses.
+type S3ObjectVersion struct {
+	Key          string `xml:"Key"`
+	VersionId    string `xml:"VersionId"`
+	IsLatest     bool   `xml:"IsLatest"`
+	LastModified string `xml:"LastModified"`
+	ETag         string `xml:"ETag"`
+	Size         int64  `xml:"Size"`
+	StorageClass string `xml:"StorageClass"`
+}
+
+// S3DeleteMarker represents a delete marker in list versions responses.
+type S3DeleteMarker struct {
+	Key          string `xml:"Key"`
+	VersionId    string `xml:"VersionId"`
+	IsLatest     bool   `xml:"IsLatest"`
+	LastModified string `xml:"LastModified"`
+}
+
 // =============================================================================
 // Handler Methods
 // =============================================================================
@@ -113,13 +149,6 @@ func (h *ObjectHandler) PutObject(w http.ResponseWriter, r *http.Request, bucket
 	if !ok {
 		h.logger.Error().Msg("no user context found")
 		writeError(w, ErrAccessDenied)
-		return
-	}
-
-	// Check for copy operation
-	copySource := r.Header.Get("x-amz-copy-source")
-	if copySource != "" {
-		h.handleCopyObject(w, r, bucketName, objectKey, copySource, userCtx)
 		return
 	}
 
@@ -468,9 +497,111 @@ func (h *ObjectHandler) ListObjectsV2(w http.ResponseWriter, r *http.Request, bu
 	writeXML(w, http.StatusOK, response)
 }
 
-// handleCopyObject handles copy operations within PutObject.
-func (h *ObjectHandler) handleCopyObject(w http.ResponseWriter, r *http.Request, destBucket, destKey, copySource string, userCtx *auth.AuthContext) {
+// ListObjectVersions handles GET /{bucket}?versions requests.
+func (h *ObjectHandler) ListObjectVersions(w http.ResponseWriter, r *http.Request, bucketName string) {
 	ctx := r.Context()
+
+	// Get authenticated user from context
+	userCtx, ok := auth.GetUserContext(ctx)
+	if !ok {
+		h.logger.Error().Msg("no user context found")
+		writeError(w, ErrAccessDenied)
+		return
+	}
+
+	query := r.URL.Query()
+
+	// Parse parameters
+	maxKeys, _ := strconv.Atoi(query.Get("max-keys"))
+	if maxKeys <= 0 {
+		maxKeys = 1000
+	}
+
+	// List versions
+	output, err := h.objectService.ListObjectVersions(ctx, service.ListObjectVersionsInput{
+		BucketName:      bucketName,
+		Prefix:          query.Get("prefix"),
+		Delimiter:       query.Get("delimiter"),
+		KeyMarker:       query.Get("key-marker"),
+		VersionIDMarker: query.Get("version-id-marker"),
+		MaxKeys:         maxKeys,
+		OwnerID:         userCtx.UserID,
+	})
+
+	if err != nil {
+		h.handleObjectError(w, err, bucketName, "")
+		return
+	}
+
+	// Build response
+	versions := make([]S3ObjectVersion, len(output.Versions))
+	for i, ver := range output.Versions {
+		versions[i] = S3ObjectVersion{
+			Key:          ver.Key,
+			VersionId:    ver.VersionID,
+			IsLatest:     ver.IsLatest,
+			LastModified: formatS3Time(ver.LastModified),
+			ETag:         ver.ETag,
+			Size:         ver.Size,
+			StorageClass: string(ver.StorageClass),
+		}
+	}
+
+	deleteMarkers := make([]S3DeleteMarker, len(output.DeleteMarkers))
+	for i, dm := range output.DeleteMarkers {
+		deleteMarkers[i] = S3DeleteMarker{
+			Key:          dm.Key,
+			VersionId:    dm.VersionID,
+			IsLatest:     dm.IsLatest,
+			LastModified: formatS3Time(dm.LastModified),
+		}
+	}
+
+	commonPrefixes := make([]CommonPrefix, len(output.CommonPrefixes))
+	for i, prefix := range output.CommonPrefixes {
+		commonPrefixes[i] = CommonPrefix{Prefix: prefix}
+	}
+
+	response := ListVersionsResult{
+		Xmlns:               "http://s3.amazonaws.com/doc/2006-03-01/",
+		Name:                bucketName,
+		Prefix:              output.Prefix,
+		KeyMarker:           output.KeyMarker,
+		VersionIdMarker:     output.VersionIDMarker,
+		NextKeyMarker:       output.NextKeyMarker,
+		NextVersionIdMarker: output.NextVersionIDMarker,
+		MaxKeys:             output.MaxKeys,
+		Delimiter:           output.Delimiter,
+		IsTruncated:         output.IsTruncated,
+		Versions:            versions,
+		DeleteMarkers:       deleteMarkers,
+		CommonPrefixes:      commonPrefixes,
+	}
+
+	writeXML(w, http.StatusOK, response)
+}
+
+// CopyObject handles PUT /{bucket}/{key} requests with x-amz-copy-source header.
+func (h *ObjectHandler) CopyObject(w http.ResponseWriter, r *http.Request, destBucket, destKey string) {
+	ctx := r.Context()
+
+	// Get authenticated user from context
+	userCtx, ok := auth.GetUserContext(ctx)
+	if !ok {
+		h.logger.Error().Msg("no user context found")
+		writeError(w, ErrAccessDenied)
+		return
+	}
+
+	copySource := r.Header.Get("x-amz-copy-source")
+	if copySource == "" {
+		writeError(w, S3Error{
+			Code:           "InvalidArgument",
+			Message:        "Missing x-amz-copy-source header.",
+			HTTPStatusCode: http.StatusBadRequest,
+		})
+		return
+	}
 
 	// Parse copy source: /bucket/key or bucket/key
 	copySource, _ = url.PathUnescape(copySource)
