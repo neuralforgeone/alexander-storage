@@ -108,20 +108,20 @@
 
 ## Section 2: Feature Roadmap
 
-### Phase 1: Core Infrastructure (Current)
+### Phase 1: Core Infrastructure ✅ COMPLETED
 - [x] Project structure initialization
 - [x] MEMORY_BANK.md creation
-- [ ] Database migrations (users, access_keys, buckets, blobs, objects)
-- [ ] Domain models (Go structs)
-- [ ] Repository interfaces
-- [ ] Storage interfaces
-- [ ] Crypto utilities (AES-256-GCM)
+- [x] Database migrations (users, access_keys, buckets, blobs, objects)
+- [x] Domain models (Go structs)
+- [x] Repository interfaces
+- [x] Storage interfaces
+- [x] Crypto utilities (AES-256-GCM)
 - [ ] Configuration loading (Viper)
 - [ ] Logging setup (Zerolog)
 
-### Phase 2: IAM & Authentication
-- [ ] AWS v4 signature parsing
-- [ ] Signature verification (HMAC-SHA256)
+### Phase 2: IAM & Authentication (Current)
+- [x] AWS v4 signature parsing
+- [x] Signature verification (HMAC-SHA256)
 - [ ] Access key management (create, list, revoke)
 - [ ] User management (create, authenticate)
 - [ ] Auth middleware integration
@@ -328,10 +328,10 @@ Path: /data/ab/cd/abcdef1234567890...
 ## Section 4: Current Context
 
 ### Active Development Phase
-**Phase 1: Core Infrastructure**
+**Phase 2: IAM & Authentication**
 
 ### Current Task
-Creating database migrations and domain models
+Implementing configuration loading, PostgreSQL repositories, and IAM services
 
 ### Last Updated
 2024-12-04
@@ -347,14 +347,21 @@ Creating database migrations and domain models
 - `cmd/alexander-admin/main.go` - Admin CLI entry point
 - `cmd/alexander-migrate/main.go` - Migration tool entry point
 - `MEMORY_BANK.md` - This file
+- `migrations/postgres/000001_init.up.sql` - Database schema
+- `migrations/postgres/000001_init.down.sql` - Schema rollback
+- `internal/domain/*.go` - Domain models (7 files)
+- `internal/pkg/crypto/*.go` - Crypto utilities (3 files)
+- `internal/storage/*.go` - Storage interfaces (2 files)
+- `internal/repository/*.go` - Repository interfaces (2 files)
+- `internal/auth/*.go` - Auth middleware (6 files)
 
 ### Pending Tasks
-1. Create database migrations (`migrations/postgres/000001_init.up.sql`)
-2. Implement domain models (`internal/domain/*.go`)
-3. Implement crypto utilities (`internal/pkg/crypto/aes.go`)
-4. Define storage interfaces (`internal/storage/interfaces.go`)
-5. Define repository interfaces (`internal/repository/interfaces.go`)
-6. Create auth types and constants (`internal/auth/*.go`)
+1. Implement configuration loading (`internal/config/config.go`)
+2. Implement PostgreSQL repositories (`internal/repository/postgres/`)
+3. Implement Redis cache (`internal/repository/redis/`)
+4. Create IAM service (`internal/service/iam_service.go`)
+5. Wire auth middleware with real access key store
+6. Implement presigned URL generation
 
 ### Known Issues
 None currently.
