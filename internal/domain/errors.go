@@ -164,6 +164,13 @@ var (
 
 	// ErrInvalidPresignedURL indicates the presigned URL is malformed.
 	ErrInvalidPresignedURL = errors.New("invalid presigned URL")
+
+	// ===========================================
+	// Lifecycle Errors
+	// ===========================================
+
+	// ErrInvalidLifecycleRule indicates the lifecycle rule is invalid.
+	ErrInvalidLifecycleRule = errors.New("invalid lifecycle rule")
 )
 
 // DomainError wraps a domain error with additional context.

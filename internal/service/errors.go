@@ -31,6 +31,16 @@ var (
 	ErrBucketAccessDenied      = errors.New("access denied to bucket")
 	ErrInvalidVersioningStatus = errors.New("invalid versioning status: must be Enabled or Suspended")
 
+	// Session errors
+	ErrSessionNotFound = errors.New("session not found")
+	ErrSessionExpired  = errors.New("session has expired")
+	ErrNotAdminUser    = errors.New("user is not an admin")
+
+	// Lifecycle errors
+	ErrLifecycleRuleNotFound      = errors.New("lifecycle rule not found")
+	ErrLifecycleRuleAlreadyExists = errors.New("lifecycle rule already exists")
+	ErrInvalidLifecycleRule       = errors.New("invalid lifecycle rule")
+
 	// General errors
 	ErrEncryptionFailed = errors.New("encryption failed")
 	ErrDecryptionFailed = errors.New("decryption failed")

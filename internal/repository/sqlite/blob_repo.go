@@ -33,10 +33,10 @@ func (r *blobRepository) UpsertWithRefIncrement(ctx context.Context, contentHash
 
 	if err != nil {
 		if isNoRows(err) {
-			// New blob - insert it
+			// New blob - insert it (unencrypted by default)
 			query := `
-				INSERT INTO blobs (content_hash, size, storage_path, ref_count, created_at, last_accessed)
-				VALUES (?, ?, ?, 1, ?, ?)
+				INSERT INTO blobs (content_hash, size, storage_path, ref_count, is_encrypted, encryption_iv, created_at, last_accessed)
+				VALUES (?, ?, ?, 1, 0, NULL, ?, ?)
 			`
 			now := time.Now().UTC().Format(time.RFC3339)
 			_, err := r.db.ExecContext(ctx, query, contentHash, size, storagePath, now, now)
@@ -62,22 +62,66 @@ func (r *blobRepository) UpsertWithRefIncrement(ctx context.Context, contentHash
 	return false, nil
 }
 
+// UpsertEncrypted creates a new encrypted blob or increments ref_count if it exists.
+// Returns (isNew, error) where isNew indicates if a new blob was created.
+func (r *blobRepository) UpsertEncrypted(ctx context.Context, contentHash string, size int64, storagePath string, encryptionIV string) (bool, error) {
+	var existingRefCount int32
+	err := r.db.QueryRowContext(ctx,
+		`SELECT ref_count FROM blobs WHERE content_hash = ?`,
+		contentHash,
+	).Scan(&existingRefCount)
+
+	if err != nil {
+		if isNoRows(err) {
+			// New blob - insert it with encryption
+			query := `
+				INSERT INTO blobs (content_hash, size, storage_path, ref_count, is_encrypted, encryption_iv, created_at, last_accessed)
+				VALUES (?, ?, ?, 1, 1, ?, ?, ?)
+			`
+			now := time.Now().UTC().Format(time.RFC3339)
+			_, err := r.db.ExecContext(ctx, query, contentHash, size, storagePath, encryptionIV, now, now)
+			if err != nil {
+				return false, fmt.Errorf("failed to insert encrypted blob: %w", err)
+			}
+			return true, nil
+		}
+		return false, fmt.Errorf("failed to check blob existence: %w", err)
+	}
+
+	// Existing blob - increment ref_count
+	query := `
+		UPDATE blobs
+		SET ref_count = ref_count + 1, last_accessed = ?
+		WHERE content_hash = ?
+	`
+	_, err = r.db.ExecContext(ctx, query, time.Now().UTC().Format(time.RFC3339), contentHash)
+	if err != nil {
+		return false, fmt.Errorf("failed to increment blob ref_count: %w", err)
+	}
+
+	return false, nil
+}
+
 // GetByHash retrieves a blob by its content hash.
 func (r *blobRepository) GetByHash(ctx context.Context, contentHash string) (*domain.Blob, error) {
 	query := `
-		SELECT content_hash, size, storage_path, ref_count, created_at, last_accessed
+		SELECT content_hash, size, storage_path, ref_count, is_encrypted, encryption_iv, created_at, last_accessed
 		FROM blobs
 		WHERE content_hash = ?
 	`
 
 	blob := &domain.Blob{}
 	var createdAt, lastAccessed string
+	var isEncrypted int
+	var encryptionIV *string
 
 	err := r.db.QueryRowContext(ctx, query, contentHash).Scan(
 		&blob.ContentHash,
 		&blob.Size,
 		&blob.StoragePath,
 		&blob.RefCount,
+		&isEncrypted,
+		&encryptionIV,
 		&createdAt,
 		&lastAccessed,
 	)
@@ -89,10 +133,37 @@ func (r *blobRepository) GetByHash(ctx context.Context, contentHash string) (*do
 		return nil, fmt.Errorf("failed to get blob by hash: %w", err)
 	}
 
+	blob.IsEncrypted = isEncrypted == 1
+	if encryptionIV != nil {
+		blob.EncryptionIV = *encryptionIV
+	}
 	blob.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 	blob.LastAccessed, _ = time.Parse(time.RFC3339, lastAccessed)
 
 	return blob, nil
+}
+
+// GetEncryptionStatus returns the encryption status and IV for a blob.
+func (r *blobRepository) GetEncryptionStatus(ctx context.Context, contentHash string) (isEncrypted bool, encryptionIV string, err error) {
+	var encrypted int
+	var iv *string
+
+	err = r.db.QueryRowContext(ctx,
+		`SELECT is_encrypted, encryption_iv FROM blobs WHERE content_hash = ?`,
+		contentHash,
+	).Scan(&encrypted, &iv)
+	if err != nil {
+		if isNoRows(err) {
+			return false, "", domain.ErrBlobNotFound
+		}
+		return false, "", fmt.Errorf("failed to get encryption status: %w", err)
+	}
+
+	isEncrypted = encrypted == 1
+	if iv != nil {
+		encryptionIV = *iv
+	}
+	return isEncrypted, encryptionIV, nil
 }
 
 // IncrementRef atomically increments the reference count.
@@ -200,7 +271,7 @@ func (r *blobRepository) ListOrphans(ctx context.Context, gracePeriod time.Durat
 	cutoff := time.Now().UTC().Add(-gracePeriod).Format(time.RFC3339)
 
 	query := `
-		SELECT content_hash, size, storage_path, ref_count, created_at, last_accessed
+		SELECT content_hash, size, storage_path, ref_count, is_encrypted, encryption_iv, created_at, last_accessed
 		FROM blobs
 		WHERE ref_count <= 0 AND created_at < ?
 		ORDER BY created_at ASC
@@ -217,12 +288,16 @@ func (r *blobRepository) ListOrphans(ctx context.Context, gracePeriod time.Durat
 	for rows.Next() {
 		blob := &domain.Blob{}
 		var createdAt, lastAccessed string
+		var isEncrypted int
+		var encryptionIV *string
 
 		err := rows.Scan(
 			&blob.ContentHash,
 			&blob.Size,
 			&blob.StoragePath,
 			&blob.RefCount,
+			&isEncrypted,
+			&encryptionIV,
 			&createdAt,
 			&lastAccessed,
 		)
@@ -230,6 +305,10 @@ func (r *blobRepository) ListOrphans(ctx context.Context, gracePeriod time.Durat
 			return nil, fmt.Errorf("failed to scan blob: %w", err)
 		}
 
+		blob.IsEncrypted = isEncrypted == 1
+		if encryptionIV != nil {
+			blob.EncryptionIV = *encryptionIV
+		}
 		blob.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 		blob.LastAccessed, _ = time.Parse(time.RFC3339, lastAccessed)
 
@@ -274,6 +353,77 @@ func (r *blobRepository) UpdateLastAccessed(ctx context.Context, contentHash str
 		return fmt.Errorf("failed to update last accessed: %w", err)
 	}
 	return nil
+}
+
+// UpdateEncrypted marks a blob as encrypted with the given IV.
+// Used during lazy migration of existing unencrypted blobs.
+func (r *blobRepository) UpdateEncrypted(ctx context.Context, contentHash string, encryptionIV string) error {
+	query := `UPDATE blobs SET is_encrypted = 1, encryption_iv = ? WHERE content_hash = ?`
+	result, err := r.db.ExecContext(ctx, query, encryptionIV, contentHash)
+	if err != nil {
+		return fmt.Errorf("failed to update blob encryption status: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return domain.ErrBlobNotFound
+	}
+
+	return nil
+}
+
+// ListUnencrypted returns blobs that are not yet encrypted (for migration).
+func (r *blobRepository) ListUnencrypted(ctx context.Context, limit int) ([]*domain.Blob, error) {
+	query := `
+		SELECT content_hash, size, storage_path, ref_count, is_encrypted, encryption_iv, created_at, last_accessed
+		FROM blobs
+		WHERE is_encrypted = 0
+		ORDER BY created_at ASC
+		LIMIT ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list unencrypted blobs: %w", err)
+	}
+	defer rows.Close()
+
+	var blobs []*domain.Blob
+	for rows.Next() {
+		blob := &domain.Blob{}
+		var createdAt, lastAccessed string
+		var isEncrypted int
+		var encryptionIV *string
+
+		err := rows.Scan(
+			&blob.ContentHash,
+			&blob.Size,
+			&blob.StoragePath,
+			&blob.RefCount,
+			&isEncrypted,
+			&encryptionIV,
+			&createdAt,
+			&lastAccessed,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan blob: %w", err)
+		}
+
+		blob.IsEncrypted = isEncrypted == 1
+		if encryptionIV != nil {
+			blob.EncryptionIV = *encryptionIV
+		}
+		blob.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+		blob.LastAccessed, _ = time.Parse(time.RFC3339, lastAccessed)
+
+		blobs = append(blobs, blob)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating blobs: %w", err)
+	}
+
+	return blobs, nil
 }
 
 // Ensure blobRepository implements repository.BlobRepository.

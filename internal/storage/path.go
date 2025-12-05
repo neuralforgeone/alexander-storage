@@ -109,3 +109,9 @@ func GetShardPath(config PathConfig, contentHash string) string {
 
 	return filepath.Join(components...)
 }
+
+// ComputeDir returns the directory path where a blob should be stored.
+// This is an alias for GetShardPath for convenience.
+func ComputeDir(config PathConfig, contentHash string) string {
+	return GetShardPath(config, contentHash)
+}

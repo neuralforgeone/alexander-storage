@@ -107,6 +107,9 @@ type BucketRepository interface {
 	// UpdateVersioning updates the versioning status of a bucket.
 	UpdateVersioning(ctx context.Context, id int64, status domain.VersioningStatus) error
 
+	// UpdateACL updates the ACL of a bucket.
+	UpdateACL(ctx context.Context, id int64, acl domain.BucketACL) error
+
 	// Delete deletes a bucket by ID.
 	Delete(ctx context.Context, id int64) error
 
@@ -118,6 +121,10 @@ type BucketRepository interface {
 
 	// IsEmpty checks if a bucket contains any objects.
 	IsEmpty(ctx context.Context, id int64) (bool, error)
+
+	// GetACLByName retrieves only the ACL for a bucket by name.
+	// This is optimized for anonymous access checks.
+	GetACLByName(ctx context.Context, name string) (domain.BucketACL, error)
 }
 
 // =============================================================================
@@ -162,6 +169,20 @@ type BlobRepository interface {
 
 	// UpdateLastAccessed updates the last_accessed timestamp.
 	UpdateLastAccessed(ctx context.Context, contentHash string) error
+
+	// UpsertEncrypted creates a new encrypted blob or increments ref_count if it exists.
+	// Returns (isNew, error) where isNew indicates if a new blob was created.
+	UpsertEncrypted(ctx context.Context, contentHash string, size int64, storagePath string, encryptionIV string) (isNew bool, err error)
+
+	// GetEncryptionStatus returns the encryption status and IV for a blob.
+	GetEncryptionStatus(ctx context.Context, contentHash string) (isEncrypted bool, encryptionIV string, err error)
+
+	// UpdateEncrypted marks a blob as encrypted with the given IV (SSE-S3 migration).
+	UpdateEncrypted(ctx context.Context, contentHash string, encryptionIV string) error
+
+	// ListUnencrypted returns unencrypted blobs for migration.
+	// Used by the encrypt-blobs CLI command.
+	ListUnencrypted(ctx context.Context, limit int) ([]*domain.Blob, error)
 }
 
 // =============================================================================
@@ -187,6 +208,10 @@ type ObjectRepository interface {
 
 	// ListVersions returns all versions of objects in a bucket.
 	ListVersions(ctx context.Context, bucketID int64, opts ObjectListOptions) (*ObjectVersionListResult, error)
+
+	// ListExpiredObjects returns latest objects older than cutoff, with optional prefix.
+	// Used by lifecycle service for expiration processing.
+	ListExpiredObjects(ctx context.Context, bucketID int64, prefix string, olderThan time.Time, limit int) ([]*domain.Object, error)
 
 	// Update updates an existing object.
 	Update(ctx context.Context, obj *domain.Object) error
@@ -421,4 +446,74 @@ type TxOptions struct {
 
 	// ReadOnly specifies if the transaction is read-only.
 	ReadOnly bool
+}
+
+// =============================================================================
+// Session Repository (Dashboard Authentication)
+// =============================================================================
+
+// SessionRepository defines the interface for session data access.
+type SessionRepository interface {
+	// Create creates a new session.
+	Create(ctx context.Context, session *domain.Session) error
+
+	// GetByToken retrieves a session by its token.
+	GetByToken(ctx context.Context, token string) (*domain.Session, error)
+
+	// GetByUserID returns all sessions for a user.
+	GetByUserID(ctx context.Context, userID int64) ([]*domain.Session, error)
+
+	// Delete deletes a session by token.
+	Delete(ctx context.Context, token string) error
+
+	// DeleteByUserID deletes all sessions for a user.
+	DeleteByUserID(ctx context.Context, userID int64) error
+
+	// DeleteExpired deletes all expired sessions.
+	// Returns the number of deleted sessions.
+	DeleteExpired(ctx context.Context) (int64, error)
+
+	// Refresh extends a session's expiration time.
+	Refresh(ctx context.Context, token string, newExpiresAt time.Time) error
+
+	// CountByUserID returns the number of active sessions for a user.
+	CountByUserID(ctx context.Context, userID int64) (int64, error)
+}
+
+// =============================================================================
+// Lifecycle Repository
+// =============================================================================
+
+// LifecycleRepository defines the interface for lifecycle rule data access.
+type LifecycleRepository interface {
+	// Create creates a new lifecycle rule.
+	Create(ctx context.Context, rule *domain.LifecycleRule) error
+
+	// GetByID retrieves a lifecycle rule by ID.
+	GetByID(ctx context.Context, id int64) (*domain.LifecycleRule, error)
+
+	// GetByBucketAndRuleID retrieves a rule by bucket ID and rule ID.
+	GetByBucketAndRuleID(ctx context.Context, bucketID int64, ruleID string) (*domain.LifecycleRule, error)
+
+	// ListByBucket returns all lifecycle rules for a bucket.
+	ListByBucket(ctx context.Context, bucketID int64) ([]*domain.LifecycleRule, error)
+
+	// ListEnabledByBucket returns only enabled rules for a bucket.
+	ListEnabledByBucket(ctx context.Context, bucketID int64) ([]*domain.LifecycleRule, error)
+
+	// Update updates an existing lifecycle rule.
+	Update(ctx context.Context, rule *domain.LifecycleRule) error
+
+	// Delete deletes a lifecycle rule by ID.
+	Delete(ctx context.Context, id int64) error
+
+	// DeleteByBucketAndRuleID deletes a rule by bucket ID and rule ID.
+	DeleteByBucketAndRuleID(ctx context.Context, bucketID int64, ruleID string) error
+
+	// DeleteByBucket deletes all lifecycle rules for a bucket.
+	DeleteByBucket(ctx context.Context, bucketID int64) error
+
+	// ListAllEnabled returns all enabled lifecycle rules across all buckets.
+	// Used by the lifecycle service scheduler.
+	ListAllEnabled(ctx context.Context) ([]*domain.LifecycleRule, error)
 }

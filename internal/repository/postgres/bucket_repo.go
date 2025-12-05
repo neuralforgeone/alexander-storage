@@ -24,8 +24,8 @@ func NewBucketRepository(db *DB) repository.BucketRepository {
 // Create creates a new bucket.
 func (r *bucketRepository) Create(ctx context.Context, bucket *domain.Bucket) error {
 	query := `
-		INSERT INTO buckets (owner_id, name, region, versioning, object_lock, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO buckets (owner_id, name, region, versioning, acl, object_lock, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
@@ -34,6 +34,7 @@ func (r *bucketRepository) Create(ctx context.Context, bucket *domain.Bucket) er
 		bucket.Name,
 		bucket.Region,
 		bucket.Versioning,
+		bucket.ACL,
 		bucket.ObjectLock,
 		bucket.CreatedAt,
 	).Scan(&bucket.ID)
@@ -51,7 +52,7 @@ func (r *bucketRepository) Create(ctx context.Context, bucket *domain.Bucket) er
 // GetByID retrieves a bucket by ID.
 func (r *bucketRepository) GetByID(ctx context.Context, id int64) (*domain.Bucket, error) {
 	query := `
-		SELECT id, owner_id, name, region, versioning, object_lock, created_at
+		SELECT id, owner_id, name, region, versioning, acl, object_lock, created_at
 		FROM buckets
 		WHERE id = $1
 	`
@@ -63,6 +64,7 @@ func (r *bucketRepository) GetByID(ctx context.Context, id int64) (*domain.Bucke
 		&bucket.Name,
 		&bucket.Region,
 		&bucket.Versioning,
+		&bucket.ACL,
 		&bucket.ObjectLock,
 		&bucket.CreatedAt,
 	)
@@ -80,7 +82,7 @@ func (r *bucketRepository) GetByID(ctx context.Context, id int64) (*domain.Bucke
 // GetByName retrieves a bucket by name.
 func (r *bucketRepository) GetByName(ctx context.Context, name string) (*domain.Bucket, error) {
 	query := `
-		SELECT id, owner_id, name, region, versioning, object_lock, created_at
+		SELECT id, owner_id, name, region, versioning, acl, object_lock, created_at
 		FROM buckets
 		WHERE name = $1
 	`
@@ -92,6 +94,7 @@ func (r *bucketRepository) GetByName(ctx context.Context, name string) (*domain.
 		&bucket.Name,
 		&bucket.Region,
 		&bucket.Versioning,
+		&bucket.ACL,
 		&bucket.ObjectLock,
 		&bucket.CreatedAt,
 	)
@@ -114,7 +117,7 @@ func (r *bucketRepository) List(ctx context.Context, userID int64) ([]*domain.Bu
 
 	if userID > 0 {
 		query = `
-			SELECT id, owner_id, name, region, versioning, object_lock, created_at
+			SELECT id, owner_id, name, region, versioning, acl, object_lock, created_at
 			FROM buckets
 			WHERE owner_id = $1
 			ORDER BY name ASC
@@ -122,7 +125,7 @@ func (r *bucketRepository) List(ctx context.Context, userID int64) ([]*domain.Bu
 		rows, err = r.db.Pool.Query(ctx, query, userID)
 	} else {
 		query = `
-			SELECT id, owner_id, name, region, versioning, object_lock, created_at
+			SELECT id, owner_id, name, region, versioning, acl, object_lock, created_at
 			FROM buckets
 			ORDER BY name ASC
 		`
@@ -143,6 +146,7 @@ func (r *bucketRepository) List(ctx context.Context, userID int64) ([]*domain.Bu
 			&bucket.Name,
 			&bucket.Region,
 			&bucket.Versioning,
+			&bucket.ACL,
 			&bucket.ObjectLock,
 			&bucket.CreatedAt,
 		)
@@ -191,6 +195,22 @@ func (r *bucketRepository) UpdateVersioning(ctx context.Context, id int64, statu
 	result, err := r.db.Pool.Exec(ctx, query, id, status)
 	if err != nil {
 		return fmt.Errorf("failed to update versioning status: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return domain.ErrBucketNotFound
+	}
+
+	return nil
+}
+
+// UpdateACL updates the ACL of a bucket.
+func (r *bucketRepository) UpdateACL(ctx context.Context, id int64, acl domain.BucketACL) error {
+	query := `UPDATE buckets SET acl = $2 WHERE id = $1`
+
+	result, err := r.db.Pool.Exec(ctx, query, id, acl)
+	if err != nil {
+		return fmt.Errorf("failed to update ACL: %w", err)
 	}
 
 	if result.RowsAffected() == 0 {
@@ -250,6 +270,20 @@ func (r *bucketRepository) IsEmpty(ctx context.Context, id int64) (bool, error) 
 		return false, fmt.Errorf("failed to check if bucket is empty: %w", err)
 	}
 	return count == 0, nil
+}
+
+// GetACLByName retrieves only the ACL for a bucket by name.
+// This is optimized for anonymous access checks.
+func (r *bucketRepository) GetACLByName(ctx context.Context, name string) (domain.BucketACL, error) {
+	var acl domain.BucketACL
+	err := r.db.Pool.QueryRow(ctx, `SELECT acl FROM buckets WHERE name = $1`, name).Scan(&acl)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", domain.ErrBucketNotFound
+		}
+		return "", fmt.Errorf("failed to get bucket ACL: %w", err)
+	}
+	return acl, nil
 }
 
 // Ensure bucketRepository implements repository.BucketRepository

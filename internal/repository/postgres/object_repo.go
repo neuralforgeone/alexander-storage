@@ -390,5 +390,63 @@ func (r *objectRepository) GetContentHashForVersion(ctx context.Context, bucketI
 	return contentHash, nil
 }
 
+// ListExpiredObjects returns latest objects older than cutoff, with optional prefix.
+// Used by lifecycle service for expiration processing.
+func (r *objectRepository) ListExpiredObjects(ctx context.Context, bucketID int64, prefix string, olderThan time.Time, limit int) ([]*domain.Object, error) {
+	query := `
+		SELECT id, bucket_id, key, version_id, is_latest, is_delete_marker, 
+			content_hash, size, content_type, etag, storage_class, metadata, created_at, deleted_at
+		FROM objects
+		WHERE bucket_id = $1 
+			AND is_latest = TRUE 
+			AND is_delete_marker = FALSE
+			AND deleted_at IS NULL
+			AND created_at < $2
+			AND ($3 = '' OR key LIKE $3 || '%')
+		ORDER BY created_at ASC
+		LIMIT $4
+	`
+
+	rows, err := r.db.Pool.Query(ctx, query, bucketID, olderThan, prefix, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list expired objects: %w", err)
+	}
+	defer rows.Close()
+
+	var objects []*domain.Object
+	for rows.Next() {
+		obj := &domain.Object{}
+		err := rows.Scan(
+			&obj.ID,
+			&obj.BucketID,
+			&obj.Key,
+			&obj.VersionID,
+			&obj.IsLatest,
+			&obj.IsDeleteMarker,
+			&obj.ContentHash,
+			&obj.Size,
+			&obj.ContentType,
+			&obj.ETag,
+			&obj.StorageClass,
+			&obj.Metadata,
+			&obj.CreatedAt,
+			&obj.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan object: %w", err)
+		}
+		objects = append(objects, obj)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating objects: %w", err)
+	}
+
+	return objects, nil
+}
+
+// Ensure objectRepository implements repository.ObjectRepository
+var _ repository.ObjectRepository = (*objectRepository)(nil)
+
 // Ensure objectRepository implements repository.ObjectRepository
 var _ repository.ObjectRepository = (*objectRepository)(nil)

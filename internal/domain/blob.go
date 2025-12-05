@@ -26,6 +26,14 @@ type Blob struct {
 	// When RefCount reaches 0, the blob can be garbage collected.
 	RefCount int32 `json:"ref_count"`
 
+	// IsEncrypted indicates whether the blob is stored encrypted (SSE-S3).
+	// New blobs are always encrypted. Old blobs may be unencrypted (mixed mode).
+	IsEncrypted bool `json:"is_encrypted"`
+
+	// EncryptionIV is the initialization vector used for AES-GCM encryption.
+	// Empty for unencrypted blobs.
+	EncryptionIV string `json:"encryption_iv,omitempty"`
+
 	// CreatedAt is the timestamp when the blob was first stored.
 	CreatedAt time.Time `json:"created_at"`
 
@@ -35,6 +43,7 @@ type Blob struct {
 
 // NewBlob creates a new Blob with the given hash and size.
 // The storage path is computed from the hash using 2-level sharding.
+// New blobs are always marked as encrypted (SSE-S3).
 func NewBlob(contentHash string, size int64, basePath string) *Blob {
 	now := time.Now().UTC()
 	return &Blob{
@@ -42,6 +51,7 @@ func NewBlob(contentHash string, size int64, basePath string) *Blob {
 		Size:         size,
 		StoragePath:  ComputeStoragePath(basePath, contentHash),
 		RefCount:     1,
+		IsEncrypted:  true, // SSE-S3: all new blobs are encrypted
 		CreatedAt:    now,
 		LastAccessed: now,
 	}

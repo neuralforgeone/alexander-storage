@@ -415,5 +415,91 @@ func (r *objectRepository) GetContentHashForVersion(ctx context.Context, bucketI
 	return nil, nil
 }
 
+// ListExpiredObjects returns latest objects older than cutoff, with optional prefix.
+// Used by lifecycle service for expiration processing.
+func (r *objectRepository) ListExpiredObjects(ctx context.Context, bucketID int64, prefix string, olderThan time.Time, limit int) ([]*domain.Object, error) {
+	query := `
+		SELECT id, bucket_id, key, version_id, is_latest, is_delete_marker, 
+			content_hash, size, content_type, etag, storage_class, metadata, created_at, deleted_at
+		FROM objects
+		WHERE bucket_id = ? 
+			AND is_latest = 1 
+			AND is_delete_marker = 0
+			AND deleted_at IS NULL
+			AND created_at < ?
+			AND (? = '' OR key LIKE ? || '%')
+		ORDER BY created_at ASC
+		LIMIT ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, bucketID, olderThan.Format(time.RFC3339), prefix, prefix, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list expired objects: %w", err)
+	}
+	defer rows.Close()
+
+	var objects []*domain.Object
+	for rows.Next() {
+		obj := &domain.Object{}
+		var versionIDStr string
+		var isLatest, isDeleteMarker int
+		var contentHash, contentType, etag, storageClass, metadataJSON sql.NullString
+		var createdAt string
+		var deletedAt sql.NullString
+
+		err := rows.Scan(
+			&obj.ID,
+			&obj.BucketID,
+			&obj.Key,
+			&versionIDStr,
+			&isLatest,
+			&isDeleteMarker,
+			&contentHash,
+			&obj.Size,
+			&contentType,
+			&etag,
+			&storageClass,
+			&metadataJSON,
+			&createdAt,
+			&deletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan object: %w", err)
+		}
+
+		obj.VersionID, _ = uuid.Parse(versionIDStr)
+		obj.IsLatest = isLatest == 1
+		obj.IsDeleteMarker = isDeleteMarker == 1
+		if contentHash.Valid {
+			obj.ContentHash = &contentHash.String
+		}
+		if contentType.Valid {
+			obj.ContentType = contentType.String
+		}
+		if etag.Valid {
+			obj.ETag = etag.String
+		}
+		if storageClass.Valid {
+			obj.StorageClass = storageClass.String
+		}
+		if metadataJSON.Valid && metadataJSON.String != "" {
+			_ = json.Unmarshal([]byte(metadataJSON.String), &obj.Metadata)
+		}
+		obj.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+		if deletedAt.Valid {
+			t, _ := time.Parse(time.RFC3339, deletedAt.String)
+			obj.DeletedAt = &t
+		}
+
+		objects = append(objects, obj)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating objects: %w", err)
+	}
+
+	return objects, nil
+}
+
 // Ensure objectRepository implements repository.ObjectRepository.
 var _ repository.ObjectRepository = (*objectRepository)(nil)

@@ -24,11 +24,13 @@ func NewBlobRepository(db *DB) repository.BlobRepository {
 
 // UpsertWithRefIncrement creates a new blob or increments ref_count if it exists.
 // Returns (isNew, error) where isNew indicates if a new blob was created.
+// New blobs are marked as encrypted by default (SSE-S3).
 func (r *blobRepository) UpsertWithRefIncrement(ctx context.Context, contentHash string, size int64, storagePath string) (bool, error) {
 	// Use PostgreSQL's INSERT ... ON CONFLICT DO UPDATE for atomic upsert
+	// New blobs are encrypted by default (is_encrypted = true)
 	query := `
-		INSERT INTO blobs (content_hash, size, storage_path, ref_count, created_at)
-		VALUES ($1, $2, $3, 1, $4)
+		INSERT INTO blobs (content_hash, size, storage_path, ref_count, is_encrypted, created_at)
+		VALUES ($1, $2, $3, 1, true, $4)
 		ON CONFLICT (content_hash) DO UPDATE
 		SET ref_count = blobs.ref_count + 1
 		RETURNING (xmax = 0) AS is_new
@@ -46,7 +48,7 @@ func (r *blobRepository) UpsertWithRefIncrement(ctx context.Context, contentHash
 // GetByHash retrieves a blob by its content hash (primary key).
 func (r *blobRepository) GetByHash(ctx context.Context, contentHash string) (*domain.Blob, error) {
 	query := `
-		SELECT content_hash, size, storage_path, ref_count, created_at, last_accessed
+		SELECT content_hash, size, storage_path, ref_count, is_encrypted, created_at, last_accessed
 		FROM blobs
 		WHERE content_hash = $1
 	`
@@ -57,6 +59,7 @@ func (r *blobRepository) GetByHash(ctx context.Context, contentHash string) (*do
 		&blob.Size,
 		&blob.StoragePath,
 		&blob.RefCount,
+		&blob.IsEncrypted,
 		&blob.CreatedAt,
 		&blob.LastAccessed,
 	)
@@ -155,7 +158,7 @@ func (r *blobRepository) Delete(ctx context.Context, contentHash string) error {
 // ListOrphans returns blobs with ref_count = 0 that are older than the grace period.
 func (r *blobRepository) ListOrphans(ctx context.Context, gracePeriod time.Duration, limit int) ([]*domain.Blob, error) {
 	query := `
-		SELECT content_hash, size, storage_path, ref_count, created_at, last_accessed
+		SELECT content_hash, size, storage_path, ref_count, is_encrypted, created_at, last_accessed
 		FROM blobs
 		WHERE ref_count <= 0 AND created_at < $1
 		ORDER BY created_at ASC
@@ -177,6 +180,7 @@ func (r *blobRepository) ListOrphans(ctx context.Context, gracePeriod time.Durat
 			&blob.Size,
 			&blob.StoragePath,
 			&blob.RefCount,
+			&blob.IsEncrypted,
 			&blob.CreatedAt,
 			&blob.LastAccessed,
 		)
@@ -234,6 +238,76 @@ func (r *blobRepository) UpdateLastAccessed(ctx context.Context, contentHash str
 	}
 
 	return nil
+}
+
+// UpdateEncrypted marks a blob as encrypted (SSE-S3 migration).
+func (r *blobRepository) UpdateEncrypted(ctx context.Context, contentHash string, encrypted bool) error {
+	query := `UPDATE blobs SET is_encrypted = $2 WHERE content_hash = $1`
+
+	result, err := r.db.Pool.Exec(ctx, query, contentHash, encrypted)
+	if err != nil {
+		return fmt.Errorf("failed to update encrypted flag: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return domain.ErrBlobNotFound
+	}
+
+	return nil
+}
+
+// ListUnencrypted returns unencrypted blobs for migration.
+func (r *blobRepository) ListUnencrypted(ctx context.Context, limit int) ([]*domain.Blob, error) {
+	query := `
+		SELECT content_hash, size, storage_path, ref_count, is_encrypted, created_at, last_accessed
+		FROM blobs
+		WHERE is_encrypted = false
+		ORDER BY created_at ASC
+		LIMIT $1
+	`
+
+	rows, err := r.db.Pool.Query(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list unencrypted blobs: %w", err)
+	}
+	defer rows.Close()
+
+	var blobs []*domain.Blob
+	for rows.Next() {
+		blob := &domain.Blob{}
+		err := rows.Scan(
+			&blob.ContentHash,
+			&blob.Size,
+			&blob.StoragePath,
+			&blob.RefCount,
+			&blob.IsEncrypted,
+			&blob.CreatedAt,
+			&blob.LastAccessed,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan blob: %w", err)
+		}
+		blobs = append(blobs, blob)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating blobs: %w", err)
+	}
+
+	return blobs, nil
+}
+
+// IsEncrypted checks if a blob is stored encrypted.
+func (r *blobRepository) IsEncrypted(ctx context.Context, contentHash string) (bool, error) {
+	var isEncrypted bool
+	err := r.db.Pool.QueryRow(ctx, `SELECT is_encrypted FROM blobs WHERE content_hash = $1`, contentHash).Scan(&isEncrypted)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, domain.ErrBlobNotFound
+		}
+		return false, fmt.Errorf("failed to check encryption status: %w", err)
+	}
+	return isEncrypted, nil
 }
 
 // Ensure blobRepository implements repository.BlobRepository

@@ -23,6 +23,44 @@ const (
 	VersioningSuspended VersioningStatus = "Suspended"
 )
 
+// BucketACL represents the canned ACL for a bucket.
+// This is a simplified access control model supporting three modes.
+type BucketACL string
+
+const (
+	// ACLPrivate means only the bucket owner can read and write (default).
+	ACLPrivate BucketACL = "private"
+
+	// ACLPublicRead means anyone can read, but only owner can write.
+	ACLPublicRead BucketACL = "public-read"
+
+	// ACLPublicReadWrite means anyone can read and write (use with caution).
+	ACLPublicReadWrite BucketACL = "public-read-write"
+)
+
+// ValidBucketACLs is the list of valid ACL values.
+var ValidBucketACLs = []BucketACL{ACLPrivate, ACLPublicRead, ACLPublicReadWrite}
+
+// IsValidACL checks if the given ACL string is valid.
+func IsValidACL(acl string) bool {
+	switch BucketACL(acl) {
+	case ACLPrivate, ACLPublicRead, ACLPublicReadWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowsAnonymousRead returns true if the ACL allows unauthenticated read access.
+func (a BucketACL) AllowsAnonymousRead() bool {
+	return a == ACLPublicRead || a == ACLPublicReadWrite
+}
+
+// AllowsAnonymousWrite returns true if the ACL allows unauthenticated write access.
+func (a BucketACL) AllowsAnonymousWrite() bool {
+	return a == ACLPublicReadWrite
+}
+
 // bucketNameRegex validates S3-compliant bucket names.
 // Rules: 3-63 characters, lowercase letters, numbers, hyphens, periods.
 // Must start and end with letter or number.
@@ -48,6 +86,10 @@ type Bucket struct {
 	// Versioning indicates the bucket's versioning status.
 	Versioning VersioningStatus `json:"versioning"`
 
+	// ACL is the canned access control list for the bucket.
+	// Controls anonymous access permissions.
+	ACL BucketACL `json:"acl"`
+
 	// ObjectLock indicates whether object locking (WORM) is enabled.
 	// Once enabled, cannot be disabled.
 	ObjectLock bool `json:"object_lock"`
@@ -63,6 +105,7 @@ func NewBucket(ownerID int64, name string) *Bucket {
 		Name:       name,
 		Region:     "us-east-1",
 		Versioning: VersioningDisabled,
+		ACL:        ACLPrivate,
 		ObjectLock: false,
 		CreatedAt:  time.Now().UTC(),
 	}

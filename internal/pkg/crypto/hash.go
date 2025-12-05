@@ -77,6 +77,11 @@ func ComputeSHA256(data []byte) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// SHA256Hex is an alias for ComputeSHA256 for convenience.
+func SHA256Hex(data []byte) string {
+	return ComputeSHA256(data)
+}
+
 // ComputeMD5 computes the MD5 hash of a byte slice.
 func ComputeMD5(data []byte) string {
 	hash := md5.Sum(data)
