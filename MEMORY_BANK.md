@@ -542,10 +542,10 @@ database:
 **Phase 9: Advanced Features** (Planning)
 
 ### Current Task
-Phase 8 completed. Ready for Phase 9: Advanced features like bucket policies, lifecycle rules, etc.
+Phase 8 completed. Technical Debt resolved. CI/CD lint errors fixed. Ready for Phase 9: Advanced features.
 
 ### Last Updated
-2025-06-25
+2025-12-05
 
 ### Completed Phases
 - ✅ Phase 1: Core Infrastructure
@@ -557,27 +557,22 @@ Phase 8 completed. Ready for Phase 9: Advanced features like bucket policies, li
 - ✅ Phase 7: Operations & Observability
 - ✅ Phase 8: Architecture Improvements
 
-### Files Modified This Session (Phase 8)
-- `internal/lock/interfaces.go` - Lock abstraction interface
-- `internal/lock/memory.go` - In-memory lock implementation
-- `internal/lock/noop.go` - No-op lock for testing
-- `internal/cache/memory/cache.go` - In-memory cache implementation
-- `internal/repository/sqlite/db.go` - SQLite connection management
-- `internal/repository/sqlite/errors.go` - SQLite error translation
-- `internal/repository/sqlite/user_repo.go` - SQLite user repository
-- `internal/repository/sqlite/accesskey_repo.go` - SQLite access key repository
-- `internal/repository/sqlite/bucket_repo.go` - SQLite bucket repository
-- `internal/repository/sqlite/blob_repo.go` - SQLite blob repository
-- `internal/repository/sqlite/object_repo.go` - SQLite object repository
-- `internal/repository/sqlite/multipart_repo.go` - SQLite multipart repository
-- `internal/repository/sqlite/migrations/000001_init.up.sql` - SQLite schema
-- `internal/repository/sqlite/migrations/000001_init.down.sql` - SQLite rollback
-- `internal/repository/factory.go` - Repository factory
-- `internal/config/config.go` - Added SQLite driver support
-- `internal/repository/postgres/db.go` - Updated Close() to return error
-- `cmd/alexander-server/main.go` - Dual database driver support
-- `configs/config.embedded.yaml.example` - Embedded mode config example
-- `MEMORY_BANK.md` - Phase 8 documentation
+### Files Modified This Session (2025-12-05)
+- `.golangci.yml` - Simplified linter configuration
+- `.github/workflows/ci.yml` - Updated Go version to 1.24
+- `.github/workflows/release.yml` - Updated Go version to 1.24
+- `Dockerfile` - Fixed Go version to 1.24
+- `internal/lock/redis.go` - NEW: Redis distributed lock adapter
+- `internal/service/multipart_service.go` - Fixed concatenation bug, added `concatenateParts()`
+- `internal/service/object_service.go` - Locker integration, fixed ineffectual assignments
+- `internal/service/gc_service.go` - Locker integration with distributed locking
+- `internal/repository/postgres/errors.go` - Added nolint directives for unused helpers
+- `internal/repository/sqlite/errors.go` - Added nolint directive
+- `internal/repository/sqlite/user_repo.go` - Added nolint directive
+- `internal/repository/sqlite/db.go` - Removed unused import, cleaned up code
+- `internal/auth/parser.go` - Removed redundant nil checks
+- `cmd/alexander-server/main.go` - Integrated locker into services
+- `cmd/alexander-admin/main.go` - Full CLI implementation
 
 ### Pending Tasks (Phase 9)
 1. Bucket policies (IAM-like access control)
@@ -610,7 +605,7 @@ None currently.
 ### 🔴 High Priority (Blocking Features)
 
 #### TD-001: Redis Distributed Lock Not Implemented
-**Status**: ✅ Completed (2025-01-06)  
+**Status**: ✅ Completed (2025-12-05)  
 **Files**: `internal/lock/redis.go`  
 **Description**: Redis-based distributed lock implemented. Uses adapter pattern to wrap `cache/redis.DistributedLock` as `lock.Locker` interface.
 
@@ -623,7 +618,7 @@ None currently.
 ---
 
 #### TD-002: Lock Not Integrated Into Services
-**Status**: ✅ Completed (2025-01-06)  
+**Status**: ✅ Completed (2025-12-05)  
 **Files**: `cmd/alexander-server/main.go`, `internal/service/*.go`  
 **Description**: Locker is now integrated into services for concurrent operation safety.
 
@@ -638,7 +633,7 @@ None currently.
 ### 🟡 Medium Priority (Quality & Maintainability)
 
 #### TD-003: Redis Cache Interface Mismatch
-**Status**: ✅ Already Correct (Verified 2025-01-06)  
+**Status**: ✅ Already Correct (Verified 2025-12-05)  
 **Files**: `internal/cache/redis/cache.go`, `internal/repository/cache.go`  
 **Description**: Both Redis and memory caches correctly implement the same `repository.Cache` interface.
 
@@ -670,7 +665,7 @@ None currently.
 ---
 
 #### TD-005: Duplicate SQLite Migration Files
-**Status**: ✅ Completed (2025-01-06)  
+**Status**: ✅ Completed (2025-12-05)  
 **Files**: `internal/repository/sqlite/migrations/` (kept)
 
 **Description**: Removed duplicate `migrations/sqlite/` directory. Only the embedded version in `internal/repository/sqlite/migrations/` remains.
@@ -682,7 +677,7 @@ None currently.
 ### 🟢 Low Priority (Future Optimization)
 
 #### TD-006: Multipart Concatenation Bug (CRITICAL - NOW FIXED)
-**Status**: ✅ Completed (2025-01-06)  
+**Status**: ✅ Completed (2025-12-05)  
 **Files**: `internal/service/multipart_service.go`  
 **Description**: Fixed critical bug where `CompleteMultipartUpload` only stored the first part's data.
 
@@ -700,7 +695,7 @@ None currently.
 ---
 
 #### TD-007: Admin CLI Completeness
-**Status**: ✅ Completed (2025-01-06)  
+**Status**: ✅ Completed (2025-12-05)  
 **Files**: `cmd/alexander-admin/main.go`  
 **Description**: Full admin CLI implemented with all management commands.
 
@@ -738,12 +733,13 @@ None currently.
 
 | Date | ID | Action | Notes |
 |------|-----|--------|-------|
-| 2025-01-06 | TD-001 | Created `internal/lock/redis.go` | Adapter pattern wrapping `cache/redis.DistributedLock` |
-| 2025-01-06 | TD-002 | Integrated locker into services | Updated constructors for ObjectService, MultipartService, GCService |
-| 2025-01-06 | TD-003 | Verified interface compatibility | No changes needed - both caches implement same interface |
-| 2025-01-06 | TD-005 | Deleted `migrations/sqlite/` | Kept embedded migrations in `internal/repository/sqlite/migrations/` |
-| 2025-01-06 | TD-006 | Fixed multipart concatenation | Added `concatenateParts()` method using `io.MultiReader` |
-| 2025-01-06 | TD-007 | Implemented full admin CLI | User, accesskey, bucket, gc commands with JSON output |
+| 2025-12-05 | TD-001 | Created `internal/lock/redis.go` | Adapter pattern wrapping `cache/redis.DistributedLock` |
+| 2025-12-05 | TD-002 | Integrated locker into services | Updated constructors for ObjectService, MultipartService, GCService |
+| 2025-12-05 | TD-003 | Verified interface compatibility | No changes needed - both caches implement same interface |
+| 2025-12-05 | TD-005 | Deleted `migrations/sqlite/` | Kept embedded migrations in `internal/repository/sqlite/migrations/` |
+| 2025-12-05 | TD-006 | Fixed multipart concatenation | Added `concatenateParts()` method using `io.MultiReader` |
+| 2025-12-05 | TD-007 | Implemented full admin CLI | User, accesskey, bucket, gc commands with JSON output |
+| 2025-12-05 | - | Fixed golangci-lint errors | Simplified linter config, fixed unused vars, ineffectual assignments |
 
 ---
 
@@ -815,22 +811,22 @@ None currently.
        │                                             │
        │ bucket_id                      content_hash │
        ▼                                             │
-┌─────────────────────────────────────────────────────┐
-│                      objects                        │
-├─────────────────────────────────────────────────────┤
-│ id (PK)                                             │
-│ bucket_id (FK)                                      │
-│ key                                                 │
+┌────────────────────────────────────────────────────┐
+│                      objects                       │
+├────────────────────────────────────────────────────┤
+│ id (PK)                                            │
+│ bucket_id (FK)                                     │
+│ key                                                │
 │ version_id (UQ per bucket+key when is_latest)      │
 │ is_latest ──────► PARTIAL UNIQUE INDEX             │
 │ is_delete_marker                                   │
-│ content_hash (FK) ─────────────────────────────────┘
-│ size                                                │
-│ content_type                                        │
-│ etag                                                │
-│ metadata (JSONB)                                    │
-│ created_at                                          │
-└─────────────────────────────────────────────────────┘
+│ content_hash (FK) ─────────────────────────────────|
+│ size                                               │
+│ content_type                                       │
+│ etag                                               │
+│ metadata (JSONB)                                   │
+│ created_at                                         │
+└────────────────────────────────────────────────────┘
 
 ┌──────────────────┐       ┌──────────────────┐
 │ multipart_uploads│       │   upload_parts   │
@@ -911,4 +907,4 @@ make test
 
 ---
 
-*Last Updated: 2025-12-04*
+*Last Updated: 2025-12-05*
