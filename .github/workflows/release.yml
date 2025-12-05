@@ -66,25 +66,37 @@ jobs:
         run: |
           cd dist
           
+          # Copy install scripts
+          cp ../scripts/install.sh .
+          cp ../scripts/install.ps1 .
+          cp ../scripts/uninstall.sh .
+          cp ../scripts/uninstall.ps1 .
+          cp ../configs/config.yaml.example .
+          
           # Linux amd64
           tar -czvf alexander-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz \
-            alexander-server-linux-amd64 alexander-admin-linux-amd64 alexander-migrate-linux-amd64
+            alexander-server-linux-amd64 alexander-admin-linux-amd64 alexander-migrate-linux-amd64 \
+            install.sh uninstall.sh config.yaml.example
           
           # Linux arm64
           tar -czvf alexander-${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz \
-            alexander-server-linux-arm64 alexander-admin-linux-arm64 alexander-migrate-linux-arm64
+            alexander-server-linux-arm64 alexander-admin-linux-arm64 alexander-migrate-linux-arm64 \
+            install.sh uninstall.sh config.yaml.example
           
           # macOS amd64
           tar -czvf alexander-${{ steps.version.outputs.VERSION }}-darwin-amd64.tar.gz \
-            alexander-server-darwin-amd64 alexander-admin-darwin-amd64 alexander-migrate-darwin-amd64
+            alexander-server-darwin-amd64 alexander-admin-darwin-amd64 alexander-migrate-darwin-amd64 \
+            install.sh uninstall.sh config.yaml.example
           
           # macOS arm64
           tar -czvf alexander-${{ steps.version.outputs.VERSION }}-darwin-arm64.tar.gz \
-            alexander-server-darwin-arm64 alexander-admin-darwin-arm64 alexander-migrate-darwin-arm64
+            alexander-server-darwin-arm64 alexander-admin-darwin-arm64 alexander-migrate-darwin-arm64 \
+            install.sh uninstall.sh config.yaml.example
           
           # Windows amd64
           zip alexander-${{ steps.version.outputs.VERSION }}-windows-amd64.zip \
-            alexander-server-windows-amd64.exe alexander-admin-windows-amd64.exe alexander-migrate-windows-amd64.exe
+            alexander-server-windows-amd64.exe alexander-admin-windows-amd64.exe alexander-migrate-windows-amd64.exe \
+            install.ps1 uninstall.ps1 config.yaml.example
 
       - name: Generate checksums
         run: |

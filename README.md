@@ -239,17 +239,65 @@ aws --endpoint-url http://localhost:9000 s3 ls s3://my-bucket/
 
 ## Installation
 
-### Prerequisites
+### Quick Install (Recommended)
 
-- Go 1.21 or later
-- PostgreSQL 14 or later
-- Redis 7 or later (optional, for caching)
+#### Linux / macOS
 
-### Build from Source
+```bash
+# One-line installer (as root/sudo)
+curl -fsSL https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/scripts/install.sh | sudo bash
+```
+
+This will:
+- Download the latest release
+- Install binaries to `/usr/local/bin`
+- Create configuration in `/etc/alexander`
+- Set up systemd/launchd service
+- Generate master keys and initial admin user
+- Create S3 access keys
+
+#### Windows (PowerShell as Administrator)
+
+```powershell
+# One-line installer
+irm https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/scripts/install.ps1 | iex
+```
+
+This will:
+- Download the latest release
+- Install binaries to `C:\Program Files\Alexander`
+- Create configuration in `C:\ProgramData\Alexander`
+- Set up Windows service
+- Configure firewall rules
+- Generate master keys and initial admin user
+
+### Manual Installation
+
+#### Prerequisites
+
+- Go 1.21 or later (for building from source)
+- PostgreSQL 14 or later (for production mode)
+- Redis 7 or later (optional, for distributed deployments)
+
+#### Download Release
+
+```bash
+# Linux amd64
+curl -LO https://github.com/neuralforgeone/alexander-storage/releases/latest/download/alexander-linux-amd64.tar.gz
+tar -xzf alexander-linux-amd64.tar.gz
+sudo mv alexander-* /usr/local/bin/
+
+# macOS arm64 (Apple Silicon)
+curl -LO https://github.com/neuralforgeone/alexander-storage/releases/latest/download/alexander-darwin-arm64.tar.gz
+tar -xzf alexander-darwin-arm64.tar.gz
+sudo mv alexander-* /usr/local/bin/
+```
+
+#### Build from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/prn-tf/alexander-storage.git
+git clone https://github.com/neuralforgeone/alexander-storage.git
 cd alexander-storage
 
 # Download dependencies
@@ -265,19 +313,29 @@ ls -la bin/
 # alexander-migrate  - Database migration tool
 ```
 
-### Docker Image
+### Docker
 
 ```bash
-# Build the Docker image
-docker build -t alexander-storage:latest .
+# Using Docker Compose (recommended)
+curl -LO https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/configs/docker-compose.yaml
+docker-compose up -d
 
-# Run with Docker
+# Or run standalone
 docker run -d \
-  -p 9000:9000 \
-  -e ALEXANDER_DATABASE_HOST=postgres \
-  -e ALEXANDER_AUTH_ENCRYPTION_KEY=your-32-byte-hex-key \
-  -v /data/alexander:/data \
-  alexander-storage:latest
+  -p 8080:8080 \
+  -e ALEXANDER_AUTH_MASTER_KEY=$(openssl rand -hex 32) \
+  -v alexander_data:/var/lib/alexander \
+  ghcr.io/neuralforgeone/alexander-storage:latest
+```
+
+### Uninstall
+
+```bash
+# Linux/macOS
+curl -fsSL https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/scripts/uninstall.sh | sudo bash
+
+# Windows (PowerShell as Administrator)
+irm https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/scripts/uninstall.ps1 | iex
 ```
 
 ---
