@@ -311,14 +311,67 @@ redis:
    - Distributed locking
    - Shared cache across nodes
 
-### Phase 9: Advanced Features (Future)
-- [ ] Bucket policies
-- [ ] Object lifecycle rules
+### Phase 9: Advanced Features ✅ COMPLETED
+> **Community Feedback**: "Need more enterprise features and easier management."
+
+- [x] Bucket ACL policies (private, public-read, public-read-write)
+- [x] Object lifecycle rules with automatic expiration
+- [x] Server-side encryption (SSE-S3 with AES-256-GCM + HKDF)
+- [x] Web Dashboard (HTMX + Tailwind CSS)
+- [x] Session-based authentication for dashboard
+- [x] Admin CLI encrypt command for migration
+
+**Implementation Details:**
+
+**Bucket ACL:**
+- Three ACL types: `private`, `public-read`, `public-read-write`
+- Anonymous access support for public buckets
+- `BucketACLChecker` interface in auth middleware
+- `BucketACLAdapter` bridges service to auth layer
+
+**Object Lifecycle Rules:**
+- Domain model with ID, BucketID, Prefix, ExpirationDays, Enabled, CreatedAt
+- Automatic object expiration based on creation date
+- CRUD operations via `LifecycleService`
+- `ListExpiredObjects` for GC integration
+
+**Server-Side Encryption (SSE-S3):**
+- AES-256-GCM encryption with HKDF-SHA256 key derivation
+- Per-object unique encryption keys derived from master key + content hash
+- `internal/pkg/crypto/sse.go` - SSE crypto utilities
+- `EncryptedStorage` wrapper for transparent encryption
+- Admin CLI: `encrypt status|run` for migration with dry-run support
+- Master key configured via `auth.sse_master_key` (32 bytes hex)
+
+**Web Dashboard:**
+- HTMX for dynamic updates without full page reloads
+- Tailwind CSS via CDN (no build step required)
+- Session-based authentication with secure cookies
+- Features: bucket management, lifecycle rules, user administration
+- Templates in `internal/handler/templates/`
+
+**Session Management:**
+- `sessions` table with UUID token, user ID, expiration
+- `SessionService` for create/validate/delete/cleanup
+- Secure HTTP-only cookies with SameSite=Lax
+
+**Configuration:**
+```yaml
+auth:
+  master_key: "your-64-char-hex-key"      # For access key encryption
+  sse_master_key: "your-64-char-hex-key"  # For SSE-S3 encryption
+
+# Dashboard served at /dashboard/*
+# Login at /dashboard/login
+```
+
+### Phase 10: Future Enhancements (Planned)
 - [ ] Cross-region replication
-- [ ] Server-side encryption
 - [ ] Object locking (WORM)
-- [ ] WEB Dashboard (webui)
-- [ ] Python and PHP sdk
+- [ ] Python and PHP SDK
+- [ ] Pre-signed URL improvements
+- [ ] Bucket versioning policies
+- [ ] Storage class transitions (lifecycle)
 
 ---
 
@@ -536,16 +589,84 @@ database:
 
 ---
 
+### Decision 10: Server-Side Encryption with HKDF Key Derivation
+
+**Date**: 2025-12-06  
+**Status**: ✅ Approved & Implemented  
+
+**Context**: Need to encrypt objects at rest for security compliance and user privacy.
+
+**Decision**: Implement SSE-S3 style encryption using AES-256-GCM with HKDF-SHA256 key derivation.
+
+**Rationale**:
+- **Per-Object Keys**: Each object gets unique encryption key derived from master key + content hash
+- **HKDF**: Secure key derivation function prevents related-key attacks
+- **AES-256-GCM**: Authenticated encryption with hardware acceleration
+- **Transparent**: `EncryptedStorage` wrapper handles encryption/decryption automatically
+- **Migration Path**: Admin CLI supports gradual encryption of existing blobs
+
+**Implementation**:
+- Master key stored in config (`auth.sse_master_key`, 32 bytes hex)
+- Per-object key: `HKDF-SHA256(masterKey, contentHash, "alexander-sse-s3")`
+- Random 12-byte IV (nonce) per encryption, stored in `blobs.encryption_iv`
+- `internal/pkg/crypto/sse.go` - Key derivation and encryption utilities
+- `internal/storage/encrypted_storage.go` - Storage wrapper
+- `alexander-admin encrypt status|run` - Migration tooling
+
+**Security Properties**:
+- IV stored separately from ciphertext for flexibility
+- Content hash as HKDF salt ensures unique keys per object
+- GCM provides both confidentiality and integrity
+- Master key rotation requires re-encryption (future feature)
+
+---
+
+### Decision 11: HTMX-Based Web Dashboard
+
+**Date**: 2025-12-06  
+**Status**: ✅ Approved & Implemented  
+
+**Context**: Users requested web UI for administration without S3 client tools.
+
+**Decision**: Build dashboard using HTMX for interactivity with server-rendered HTML.
+
+**Rationale**:
+- **No Build Step**: HTML templates + Tailwind CDN, no npm/webpack required
+- **Progressive Enhancement**: Works without JavaScript, enhanced with HTMX
+- **Low Complexity**: Go templates are simple and maintainable
+- **Fast Development**: Server-side rendering with Go templates is quick to iterate
+- **Small Bundle**: HTMX is ~14KB, vs React/Vue megabytes
+
+**Implementation**:
+- `internal/handler/dashboard_handler.go` - Route handlers
+- `internal/handler/templates/` - HTML templates with HTMX attributes
+- Session-based auth with secure cookies (HTTP-only, SameSite=Lax)
+- Features: bucket list, lifecycle rules, user management
+
+**Routes**:
+```
+GET  /dashboard/login    → Login page
+POST /dashboard/login    → Authenticate
+POST /dashboard/logout   → End session
+GET  /dashboard          → Main dashboard
+GET  /dashboard/buckets/{name} → Bucket details
+POST /dashboard/buckets/{name}/lifecycle → Add lifecycle rule
+DELETE /dashboard/buckets/{name}/lifecycle/{id} → Delete rule
+GET  /dashboard/users    → User management
+```
+
+---
+
 ## Section 4: Current Context
 
 ### Active Development Phase
-**Phase 9: Advanced Features** (Planning)
+**Phase 10: Future Enhancements** (Planning)
 
 ### Current Task
-Phase 8 completed. Technical Debt resolved. CI/CD lint errors fixed. Ready for Phase 9: Advanced features.
+Phase 9 completed. All advanced features implemented: Bucket ACL, Lifecycle Rules, SSE-S3 Encryption, Web Dashboard, Admin CLI encrypt command.
 
 ### Last Updated
-2025-12-05
+2025-12-06
 
 ### Completed Phases
 - ✅ Phase 1: Core Infrastructure
@@ -556,32 +677,53 @@ Phase 8 completed. Technical Debt resolved. CI/CD lint errors fixed. Ready for P
 - ✅ Phase 6: Multipart Upload
 - ✅ Phase 7: Operations & Observability
 - ✅ Phase 8: Architecture Improvements
+- ✅ Phase 9: Advanced Features
 
-### Files Modified This Session (2025-12-05)
-- `.golangci.yml` - Simplified linter configuration
-- `.github/workflows/ci.yml` - Updated Go version to 1.24
-- `.github/workflows/release.yml` - Updated Go version to 1.24
-- `Dockerfile` - Fixed Go version to 1.24
-- `internal/lock/redis.go` - NEW: Redis distributed lock adapter
-- `internal/service/multipart_service.go` - Fixed concatenation bug, added `concatenateParts()`
-- `internal/service/object_service.go` - Locker integration, fixed ineffectual assignments
-- `internal/service/gc_service.go` - Locker integration with distributed locking
-- `internal/repository/postgres/errors.go` - Added nolint directives for unused helpers
-- `internal/repository/sqlite/errors.go` - Added nolint directive
-- `internal/repository/sqlite/user_repo.go` - Added nolint directive
-- `internal/repository/sqlite/db.go` - Removed unused import, cleaned up code
-- `internal/auth/parser.go` - Removed redundant nil checks
-- `cmd/alexander-server/main.go` - Integrated locker into services
-- `cmd/alexander-admin/main.go` - Full CLI implementation
+### Files Modified This Session (2025-12-06)
+**New Files Created:**
+- `internal/domain/session.go` - Session domain model (UUID token, int64 UserID)
+- `internal/domain/lifecycle.go` - Lifecycle rule domain model
+- `internal/repository/postgres/session_repo.go` - PostgreSQL session repository
+- `internal/repository/postgres/lifecycle_repo.go` - PostgreSQL lifecycle repository
+- `internal/repository/sqlite/session_repo.go` - SQLite session repository
+- `internal/repository/sqlite/lifecycle_repo.go` - SQLite lifecycle repository
+- `internal/service/session_service.go` - Session management service
+- `internal/service/lifecycle_service.go` - Lifecycle rule management service
+- `internal/pkg/crypto/sse.go` - SSE-S3 encryption utilities (HKDF + AES-256-GCM)
+- `internal/storage/encrypted_storage.go` - Transparent encryption wrapper
+- `internal/handler/dashboard_handler.go` - Full HTMX web dashboard handler
+- `internal/handler/templates/base.html` - Tailwind CSS base template
+- `internal/handler/templates/login.html` - Login page
+- `internal/handler/templates/dashboard.html` - Main dashboard view
+- `internal/handler/templates/bucket_detail.html` - Bucket detail with lifecycle rules
+- `internal/handler/templates/users.html` - User management page
+- `internal/handler/templates/error.html` - Error page template
+- `internal/handler/templates/bucket_list.html` - HTMX partial for bucket list
 
-### Pending Tasks (Phase 9)
-1. Bucket policies (IAM-like access control)
-2. Object lifecycle rules
-3. Cross-region replication
-4. Server-side encryption
-5. Object locking (WORM)
-6. Web Dashboard (webui)
-7. Python and PHP SDK
+**Files Modified:**
+- `internal/domain/bucket.go` - Added BucketACL type (private, public-read, public-read-write)
+- `internal/domain/blob.go` - Added EncryptionIV field for SSE-S3
+- `internal/repository/interfaces.go` - Added Session, Lifecycle, updated Blob/Object interfaces
+- `internal/repository/postgres/blob_repo.go` - Added GetEncryptionStatus, UpsertEncrypted, fixed UpdateEncrypted
+- `internal/repository/postgres/object_repo.go` - Added ListExpiredObjects method
+- `internal/repository/sqlite/blob_repo.go` - Added encryption methods
+- `internal/repository/sqlite/object_repo.go` - Added ListExpiredObjects, fixed StorageClass conversion
+- `internal/service/bucket_service.go` - Added GetBucketACL, UpdateACL, BucketACLAdapter
+- `internal/service/object_service.go` - Added GetEncryptionStatus method
+- `internal/auth/middleware.go` - Added BucketACLChecker interface for anonymous access by ACL
+- `internal/config/config.go` - Added SSEMasterKey to AuthConfig
+- `cmd/alexander-server/main.go` - Wired BucketACLAdapter, dashboard routes
+- `cmd/alexander-admin/main.go` - Added encrypt command (status/run) with batch processing
+- `migrations/postgres/000001_init.up.sql` - Added sessions, lifecycle_rules tables, acl column
+- `internal/repository/sqlite/migrations/000001_init.up.sql` - Added same for SQLite
+
+### Pending Tasks (Phase 10)
+1. Cross-region replication
+2. Object locking (WORM)
+3. Python and PHP SDK
+4. Pre-signed URL improvements
+5. Bucket versioning policies
+6. Storage class transitions
 
 ### Known Issues
 None currently.
@@ -724,8 +866,10 @@ None currently.
 | TD-005 | Duplicate Migrations | 🟡 Medium | ✅ Completed | 0.5h |
 | TD-006 | Multipart Concatenation Bug | 🔴 Critical | ✅ Fixed | 4h |
 | TD-007 | Admin CLI | 🟢 Low | ✅ Completed | 4h |
+| TD-008 | SSE Master Key Rotation | 🟢 Low | 📋 Planned | 8h |
+| TD-009 | Dashboard CSRF Protection | 🟡 Medium | 📋 Planned | 4h |
 
-**Remaining Effort**: ~16+ hours (TD-004 Test Coverage)
+**Remaining Effort**: ~28+ hours (TD-004, TD-008, TD-009)
 
 ---
 
@@ -740,12 +884,15 @@ None currently.
 | 2025-12-05 | TD-006 | Fixed multipart concatenation | Added `concatenateParts()` method using `io.MultiReader` |
 | 2025-12-05 | TD-007 | Implemented full admin CLI | User, accesskey, bucket, gc commands with JSON output |
 | 2025-12-05 | - | Fixed golangci-lint errors | Simplified linter config, fixed unused vars, ineffectual assignments |
+| 2025-12-06 | - | Phase 9 Implementation | Bucket ACL, Lifecycle Rules, SSE-S3, Web Dashboard |
+| 2025-12-06 | TD-008 | Identified | SSE master key rotation requires re-encryption tooling |
+| 2025-12-06 | TD-009 | Identified | Dashboard forms need CSRF token protection |
 
 ---
 
 ## Section 6: API Reference
 
-### S3-Compatible Endpoints (Planned)
+### S3-Compatible Endpoints
 
 #### Bucket Operations
 | Method | Path | Operation |
@@ -756,6 +903,11 @@ None currently.
 | HEAD | `/{bucket}` | HeadBucket |
 | GET | `/{bucket}?versioning` | GetBucketVersioning |
 | PUT | `/{bucket}?versioning` | PutBucketVersioning |
+| GET | `/{bucket}?acl` | GetBucketACL |
+| PUT | `/{bucket}?acl` | PutBucketACL |
+| GET | `/{bucket}?lifecycle` | GetBucketLifecycle |
+| PUT | `/{bucket}?lifecycle` | PutBucketLifecycle |
+| DELETE | `/{bucket}?lifecycle` | DeleteBucketLifecycle |
 
 #### Object Operations
 | Method | Path | Operation |
@@ -777,6 +929,27 @@ None currently.
 | GET | `/{bucket}?uploads` | ListMultipartUploads |
 | GET | `/{bucket}/{key}?uploadId={id}` | ListParts |
 
+### Web Dashboard Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/dashboard/login` | Login page |
+| POST | `/dashboard/login` | Authenticate user |
+| POST | `/dashboard/logout` | End session |
+| GET | `/dashboard` | Main dashboard (bucket list) |
+| GET | `/dashboard/buckets/{name}` | Bucket detail view |
+| POST | `/dashboard/buckets/{name}/lifecycle` | Add lifecycle rule |
+| DELETE | `/dashboard/buckets/{name}/lifecycle/{id}` | Delete lifecycle rule |
+| GET | `/dashboard/users` | User management |
+
+### Health Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Full health check with latency |
+| GET | `/healthz` | Kubernetes liveness probe |
+| GET | `/readyz` | Kubernetes readiness probe |
+
 ---
 
 ## Section 7: Database Schema
@@ -784,49 +957,52 @@ None currently.
 ### Entity Relationship Diagram
 
 ```
-┌──────────────┐       ┌──────────────────┐
-│    users     │       │   access_keys    │
-├──────────────┤       ├──────────────────┤
-│ id (PK)      │◄──────│ user_id (FK)     │
-│ username     │       │ id (PK)          │
-│ email        │       │ access_key_id    │
-│ password_hash│       │ encrypted_secret │
-│ is_active    │       │ is_active        │
-│ is_admin     │       │ expires_at       │
-│ created_at   │       │ created_at       │
-└──────────────┘       └──────────────────┘
-       │
-       │ owner_id
+┌──────────────┐       ┌──────────────────┐       ┌──────────────────┐
+│    users     │       │   access_keys    │       │    sessions      │
+├──────────────┤       ├──────────────────┤       ├──────────────────┤
+│ id (PK)      │◄──────│ user_id (FK)     │       │ id (PK, UUID)    │
+│ username     │       │ id (PK)          │   ┌──►│ user_id (FK)     │
+│ email        │       │ access_key_id    │   │   │ expires_at       │
+│ password_hash│       │ encrypted_secret │   │   │ created_at       │
+│ is_active    │       │ is_active        │   │   └──────────────────┘
+│ is_admin     │       │ expires_at       │   │
+│ created_at   │       │ created_at       │   │
+└──────────────┘       └──────────────────┘   │
+       │                                       │
+       │ owner_id                              │
+       ├───────────────────────────────────────┘
        ▼
-┌──────────────┐       ┌──────────────────┐
-│   buckets    │       │      blobs       │
-├──────────────┤       ├──────────────────┤
-│ id (PK)      │       │ content_hash(PK) │◄─────────┐
-│ owner_id(FK) │       │ size             │          │
-│ name (UQ)    │       │ storage_path     │          │
-│ region       │       │ ref_count        │          │
-│ versioning   │       │ created_at       │          │
-│ created_at   │       └──────────────────┘          │
-└──────────────┘                                     │
-       │                                             │
-       │ bucket_id                      content_hash │
-       ▼                                             │
-┌────────────────────────────────────────────────────┐
-│                      objects                       │
-├────────────────────────────────────────────────────┤
-│ id (PK)                                            │
-│ bucket_id (FK)                                     │
-│ key                                                │
-│ version_id (UQ per bucket+key when is_latest)      │
-│ is_latest ──────► PARTIAL UNIQUE INDEX             │
-│ is_delete_marker                                   │
-│ content_hash (FK) ─────────────────────────────────|
-│ size                                               │
-│ content_type                                       │
-│ etag                                               │
-│ metadata (JSONB)                                   │
-│ created_at                                         │
-└────────────────────────────────────────────────────┘
+┌──────────────┐       ┌──────────────────┐       ┌──────────────────┐
+│   buckets    │       │      blobs       │       │ lifecycle_rules  │
+├──────────────┤       ├──────────────────┤       ├──────────────────┤
+│ id (PK)      │       │ content_hash(PK) │◄──┐   │ id (PK)          │
+│ owner_id(FK) │       │ size             │   │   │ bucket_id (FK)   │◄─┐
+│ name (UQ)    │       │ storage_path     │   │   │ prefix           │  │
+│ region       │       │ ref_count        │   │   │ expiration_days  │  │
+│ versioning   │       │ encryption_iv    │   │   │ enabled          │  │
+│ acl          │       │ created_at       │   │   │ created_at       │  │
+│ created_at   │       └──────────────────┘   │   └──────────────────┘  │
+└──────────────┘                              │                         │
+       │                                      │                         │
+       │ bucket_id                            │ content_hash            │
+       ▼                                      │                         │
+┌────────────────────────────────────────────────────────────────────────┐
+│                              objects                                   │
+├────────────────────────────────────────────────────────────────────────┤
+│ id (PK)                                                                │
+│ bucket_id (FK) ────────────────────────────────────────────────────────┤
+│ key                                                                    │
+│ version_id (UQ per bucket+key when is_latest)                          │
+│ is_latest ──────► PARTIAL UNIQUE INDEX                                 │
+│ is_delete_marker                                                       │
+│ content_hash (FK) ─────────────────────────────────────────────────────┤
+│ size                                                                   │
+│ content_type                                                           │
+│ etag                                                                   │
+│ storage_class                                                          │
+│ metadata (JSONB)                                                       │
+│ created_at                                                             │
+└────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────┐       ┌──────────────────┐
 │ multipart_uploads│       │   upload_parts   │
@@ -839,6 +1015,46 @@ None currently.
 │ metadata (JSONB) │       │ etag             │
 └──────────────────┘       │ created_at       │
                            └──────────────────┘
+```
+
+### New Tables (Phase 9)
+
+**sessions** - Web dashboard session management
+```sql
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY,              -- Session token
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_sessions_user ON sessions(user_id);
+CREATE INDEX idx_sessions_expires ON sessions(expires_at);
+```
+
+**lifecycle_rules** - Object lifecycle management
+```sql
+CREATE TABLE lifecycle_rules (
+    id BIGSERIAL PRIMARY KEY,
+    bucket_id BIGINT NOT NULL REFERENCES buckets(id) ON DELETE CASCADE,
+    prefix TEXT NOT NULL DEFAULT '',
+    expiration_days INTEGER NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(bucket_id, prefix)
+);
+CREATE INDEX idx_lifecycle_bucket ON lifecycle_rules(bucket_id);
+```
+
+**buckets.acl** - Bucket access control
+```sql
+ALTER TABLE buckets ADD COLUMN acl TEXT NOT NULL DEFAULT 'private';
+-- Values: 'private', 'public-read', 'public-read-write'
+```
+
+**blobs.encryption_iv** - Server-side encryption
+```sql
+ALTER TABLE blobs ADD COLUMN encryption_iv TEXT;
+-- NULL = unencrypted, non-NULL = AES-256-GCM IV (base64)
 ```
 
 ### Key Indexes
@@ -873,16 +1089,24 @@ CREATE INDEX idx_access_keys_lookup
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ALEXANDER_AUTH_MASTER_KEY` | 64-char hex (32 bytes) for AES-256 | Required |
+| `ALEXANDER_AUTH_MASTER_KEY` | 64-char hex (32 bytes) for access key AES-256 | Required |
+| `ALEXANDER_AUTH_SSE_MASTER_KEY` | 64-char hex (32 bytes) for SSE-S3 encryption | Optional |
 | `ALEXANDER_DATABASE_HOST` | PostgreSQL host | localhost |
 | `ALEXANDER_DATABASE_PORT` | PostgreSQL port | 5432 |
+| `ALEXANDER_DATABASE_DRIVER` | Database driver (postgres/sqlite) | postgres |
+| `ALEXANDER_DATABASE_PATH` | SQLite database path | ./data/alexander.db |
 | `ALEXANDER_REDIS_HOST` | Redis host | localhost |
 | `ALEXANDER_REDIS_PORT` | Redis port | 6379 |
+| `ALEXANDER_REDIS_ENABLED` | Enable Redis (false for single-node) | true |
 | `ALEXANDER_STORAGE_FILESYSTEM_BASE_PATH` | Blob storage path | /data |
 
-### Generate Master Key
+### Generate Master Keys
 
 ```bash
+# For access key encryption
+openssl rand -hex 32
+
+# For SSE-S3 encryption (can be same or different)
 openssl rand -hex 32
 ```
 
@@ -903,8 +1127,22 @@ make docker-up
 
 # Run tests
 make test
+
+# Admin CLI commands
+./bin/alexander-admin user create --username admin --email admin@example.com
+./bin/alexander-admin accesskey create --user-id 1
+./bin/alexander-admin encrypt status
+./bin/alexander-admin encrypt run --batch-size 100
+./bin/alexander-admin gc run --dry-run
+```
+
+### Dashboard Access
+
+```
+URL: http://localhost:8080/dashboard
+Login: Use credentials from user create command
 ```
 
 ---
 
-*Last Updated: 2025-12-05*
+*Last Updated: 2025-12-06*
