@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -64,7 +63,6 @@ func DefaultCSRFConfig() CSRFConfig {
 // CSRFMiddleware provides CSRF protection for forms.
 type CSRFMiddleware struct {
 	config CSRFConfig
-	tokens sync.Map // session token -> csrf token mapping
 }
 
 // NewCSRFMiddleware creates a new CSRF middleware.
@@ -241,9 +239,8 @@ func (m *CSRFMiddleware) ClearToken(w http.ResponseWriter) {
 // TokenRefresher is a middleware that refreshes the CSRF token periodically.
 // This can be used to rotate tokens for additional security.
 type TokenRefresher struct {
-	csrf          *CSRFMiddleware
-	refreshAfter  time.Duration
-	tokenCreation sync.Map // token -> creation time
+	csrf         *CSRFMiddleware
+	refreshAfter time.Duration
 }
 
 // NewTokenRefresher creates a new token refresher.
