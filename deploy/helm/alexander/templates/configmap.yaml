@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "alexander.configMapName" . }}
+  labels:
+    {{- include "alexander.labels" . | nindent 4 }}
+data:
+  # Server configuration
+  ALEXANDER_SERVER_HOST: {{ .Values.config.server.host | quote }}
+  ALEXANDER_SERVER_PORT: {{ .Values.config.server.port | quote }}
+  
+  # Database configuration
+  ALEXANDER_DATABASE_DRIVER: {{ .Values.config.database.driver | quote }}
+  {{- if eq .Values.config.database.driver "sqlite" }}
+  ALEXANDER_DATABASE_PATH: {{ .Values.config.database.path | quote }}
+  ALEXANDER_DATABASE_JOURNAL_MODE: {{ .Values.config.database.journalMode | quote }}
+  ALEXANDER_DATABASE_BUSY_TIMEOUT: {{ .Values.config.database.busyTimeout | quote }}
+  ALEXANDER_DATABASE_CACHE_SIZE: {{ .Values.config.database.cacheSize | quote }}
+  ALEXANDER_DATABASE_SYNCHRONOUS_MODE: {{ .Values.config.database.synchronousMode | quote }}
+  {{- else if eq .Values.config.database.driver "postgres" }}
+  ALEXANDER_DATABASE_HOST: {{ .Values.config.database.host | quote }}
+  ALEXANDER_DATABASE_PORT: {{ .Values.config.database.port | quote }}
+  ALEXANDER_DATABASE_NAME: {{ .Values.config.database.name | quote }}
+  ALEXANDER_DATABASE_SSLMODE: {{ .Values.config.database.sslmode | default "disable" | quote }}
+  {{- end }}
+  
+  # Storage configuration
+  ALEXANDER_STORAGE_FILESYSTEM_BASE_PATH: {{ .Values.config.storage.basePath | quote }}
+  
+  # Redis configuration
+  ALEXANDER_REDIS_ENABLED: {{ .Values.config.redis.enabled | quote }}
+  {{- if .Values.config.redis.enabled }}
+  ALEXANDER_REDIS_HOST: {{ .Values.config.redis.host | quote }}
+  ALEXANDER_REDIS_PORT: {{ .Values.config.redis.port | quote }}
+  {{- end }}
+  
+  # Metrics configuration
+  ALEXANDER_METRICS_ENABLED: {{ .Values.config.metrics.enabled | quote }}
+  ALEXANDER_METRICS_PORT: {{ .Values.config.metrics.port | quote }}
+  ALEXANDER_METRICS_PATH: {{ .Values.config.metrics.path | quote }}
+  
+  # Rate limiting
+  ALEXANDER_RATE_LIMIT_ENABLED: {{ .Values.config.rateLimit.enabled | quote }}
+  ALEXANDER_RATE_LIMIT_REQUESTS_PER_SECOND: {{ .Values.config.rateLimit.requestsPerSecond | quote }}
+  ALEXANDER_RATE_LIMIT_BURST_SIZE: {{ .Values.config.rateLimit.burstSize | quote }}
+  
+  # Garbage collection
+  ALEXANDER_GC_ENABLED: {{ .Values.config.gc.enabled | quote }}
+  ALEXANDER_GC_INTERVAL: {{ .Values.config.gc.interval | quote }}
+  ALEXANDER_GC_GRACE_PERIOD: {{ .Values.config.gc.gracePeriod | quote }}
+  ALEXANDER_GC_BATCH_SIZE: {{ .Values.config.gc.batchSize | quote }}
+  
+  # Logging
+  ALEXANDER_LOG_LEVEL: {{ .Values.config.log.level | quote }}
+  ALEXANDER_LOG_FORMAT: {{ .Values.config.log.format | quote }}

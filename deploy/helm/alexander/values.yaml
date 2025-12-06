@@ -1,0 +1,186 @@
+# Default values for alexander.
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/neuralforgeone/alexander-storage
+  pullPolicy: IfNotPresent
+  tag: ""  # Defaults to appVersion in Chart.yaml
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  metricsPort: 9091
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: s3.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: alexander-tls
+  #    hosts:
+  #      - s3.example.com
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Persistence configuration
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  annotations: {}
+
+# Alexander Storage configuration
+config:
+  # Server settings
+  server:
+    host: "0.0.0.0"
+    port: 8080
+    readTimeout: 30s
+    writeTimeout: 30s
+    idleTimeout: 120s
+
+  # Database configuration
+  database:
+    driver: sqlite  # sqlite or postgres
+    # SQLite settings (when driver: sqlite)
+    path: /var/lib/alexander/alexander.db
+    journalMode: WAL
+    busyTimeout: 5000
+    cacheSize: -2000
+    synchronousMode: NORMAL
+    # PostgreSQL settings (when driver: postgres)
+    # host: postgres-host
+    # port: 5432
+    # name: alexander
+    # sslmode: disable
+
+  # Storage settings
+  storage:
+    basePath: /var/lib/alexander/data
+
+  # Redis settings (for distributed mode)
+  redis:
+    enabled: false
+    host: ""
+    port: 6379
+
+  # Metrics settings
+  metrics:
+    enabled: true
+    port: 9091
+    path: /metrics
+
+  # Rate limiting
+  rateLimit:
+    enabled: true
+    requestsPerSecond: 100
+    burstSize: 200
+
+  # Garbage collection
+  gc:
+    enabled: true
+    interval: 1h
+    gracePeriod: 24h
+    batchSize: 1000
+
+  # Logging
+  log:
+    level: info
+    format: json
+
+# Secrets configuration
+secrets:
+  # Master key for access key encryption (64 hex characters = 32 bytes)
+  # IMPORTANT: Generate with: openssl rand -hex 32
+  masterKey: ""
+  # SSE master key for server-side encryption (64 hex characters = 32 bytes)
+  sseMasterKey: ""
+  # PostgreSQL credentials (when using postgres driver)
+  database:
+    user: ""
+    password: ""
+  # Redis password (if authentication is enabled)
+  redis:
+    password: ""
+
+# Use existing secrets instead of creating new ones
+existingSecret: ""
+
+# Prometheus ServiceMonitor
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# Health check configuration
+healthCheck:
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3

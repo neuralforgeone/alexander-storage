@@ -1,0 +1,222 @@
+# Security Scanning Workflow
+# Runs comprehensive security scans on a schedule and PR
+
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run daily at 3 AM UTC
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-scan:
+    name: Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck -format sarif ./... > govulncheck-results.sarif || true
+
+      - name: Upload govulncheck results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: govulncheck-results.sarif
+          category: govulncheck
+
+      - name: Run Nancy
+        run: |
+          go list -json -deps ./... > deps.json
+          docker run --rm -v $(pwd):/app sonatypecommunity/nancy:latest sleuth -p /app/deps.json
+
+  sast:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Gosec
+        uses: securego/gosec@master
+        with:
+          args: -fmt sarif -out gosec-results.sarif -exclude-generated ./...
+
+      - name: Upload Gosec results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gosec-results.sarif
+          category: gosec
+
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/golang
+            p/security-audit
+            p/secrets
+          generateSarif: true
+
+      - name: Upload Semgrep results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          extra_args: --only-verified
+
+  container-scan:
+    name: Container Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t alexander:scan .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "alexander:scan"
+          format: "sarif"
+          output: "trivy-container-results.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
+          vuln-type: "os,library"
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-container-results.sarif"
+          category: trivy-container
+
+      - name: Run Snyk Container
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: alexander:scan
+          args: --file=Dockerfile --sarif-file-output=snyk-container.sarif
+
+      - name: Upload Snyk results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-container.sarif
+          category: snyk-container
+
+  iac-scan:
+    name: Infrastructure as Code Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: deploy/
+          framework: kubernetes,helm,terraform
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          soft_fail: true
+
+      - name: Upload Checkov results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov-results.sarif
+          category: checkov
+
+      - name: Run KICS
+        uses: Checkmarx/kics-github-action@master
+        with:
+          path: deploy/
+          output_path: kics-results/
+          output_formats: "sarif"
+          exclude_paths: "deploy/helm/alexander/charts"
+
+      - name: Upload KICS results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: kics-results/results.sarif
+          category: kics
+
+  license-scan:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Run go-licenses
+        run: |
+          go install github.com/google/go-licenses@latest
+          go-licenses check ./... --disallowed_types=forbidden,restricted || true
+          go-licenses report ./... > licenses.csv
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses.csv
+
+  report:
+    name: Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, sast, secrets-scan, container-scan, iac-scan, license-scan]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Scan | ${{ needs.dependency-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SAST | ${{ needs.sast.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets Scan | ${{ needs.secrets-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Scan | ${{ needs.container-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IaC Scan | ${{ needs.iac-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Scan | ${{ needs.license-scan.result }} |" >> $GITHUB_STEP_SUMMARY

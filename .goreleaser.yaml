@@ -1,0 +1,226 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+version: 1
+
+project_name: alexander-storage
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: alexander-server
+    main: ./cmd/alexander-server
+    binary: alexander-server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+
+  - id: alexander-migrate
+    main: ./cmd/alexander-migrate
+    binary: alexander-migrate
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+
+  - id: alexander-admin
+    main: ./cmd/alexander-admin
+    binary: alexander-admin
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - configs/config.yaml.example
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: "🚀 Features"
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "🐛 Bug Fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "📚 Documentation"
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: "🔧 Maintenance"
+      order: 999
+
+dockers:
+  - id: amd64
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}-amd64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=S3-compatible object storage"
+      - "--label=org.opencontainers.image.url=https://github.com/{{ .Env.GITHUB_REPOSITORY }}"
+      - "--label=org.opencontainers.image.source=https://github.com/{{ .Env.GITHUB_REPOSITORY }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+    use: buildx
+
+  - id: arm64
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}-arm64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:latest-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=S3-compatible object storage"
+      - "--label=org.opencontainers.image.url=https://github.com/{{ .Env.GITHUB_REPOSITORY }}"
+      - "--label=org.opencontainers.image.source=https://github.com/{{ .Env.GITHUB_REPOSITORY }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+    use: buildx
+
+docker_manifests:
+  - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}-amd64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:latest"
+    image_templates:
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:latest-amd64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:latest-arm64"
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
+
+signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+
+docker_signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    artifacts: manifests
+    output: true
+    args:
+      - "sign"
+      - "${artifact}@${digest}"
+      - "--yes"
+
+release:
+  github:
+    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+    name: alexander-storage
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Alexander Storage {{ .Version }}
+    
+    S3-compatible object storage server.
+    
+    ### Installation
+    
+    ```bash
+    # Using Docker
+    docker pull ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}
+    
+    # Using Homebrew (coming soon)
+    brew install alexander-storage
+    
+    # Download binary
+    curl -L https://github.com/{{ .Env.GITHUB_REPOSITORY }}/releases/download/{{ .Tag }}/alexander-storage_{{ .Version }}_linux_amd64.tar.gz | tar xz
+    ```
+  footer: |
+    ---
+    
+    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY }}/compare/{{ .PreviousTag }}...{{ .Tag }}
+  extra_files:
+    - glob: ./configs/config.yaml.example

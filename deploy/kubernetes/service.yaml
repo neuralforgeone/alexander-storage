@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alexander-storage
+  labels:
+    app: alexander-storage
+    app.kubernetes.io/name: alexander-storage
+    app.kubernetes.io/component: server
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    - name: metrics
+      port: 9091
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app: alexander-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alexander-storage-headless
+  labels:
+    app: alexander-storage
+    app.kubernetes.io/name: alexander-storage
+    app.kubernetes.io/component: server
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: alexander-storage

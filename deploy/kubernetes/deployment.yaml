@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alexander-storage
+  labels:
+    app: alexander-storage
+    app.kubernetes.io/name: alexander-storage
+    app.kubernetes.io/component: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alexander-storage
+  template:
+    metadata:
+      labels:
+        app: alexander-storage
+    spec:
+      serviceAccountName: alexander-storage
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+      containers:
+        - name: alexander
+          image: ghcr.io/neuralforgeone/alexander-storage:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: metrics
+              containerPort: 9091
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: alexander-config
+            - secretRef:
+                name: alexander-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/alexander
+            - name: config
+              mountPath: /etc/alexander
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: alexander-data
+        - name: config
+          configMap:
+            name: alexander-config-file
+        - name: tmp
+          emptyDir: {}

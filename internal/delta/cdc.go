@@ -78,10 +78,22 @@ func (c *FastCDC) Chunk(ctx context.Context, reader io.Reader) (<-chan Chunk, <-
 		defer close(chunks)
 		defer close(errs)
 
-		buffer := make([]byte, c.config.MaxSize)
-		var offset int64
+		// Read all data first - this is simpler and avoids streaming bugs
+		// For very large files, consider using ChunkReader which handles streaming better
+		data, err := io.ReadAll(reader)
+		if err != nil {
+			errs <- err
+			return
+		}
 
-		for {
+		if len(data) == 0 {
+			return
+		}
+
+		var offset int64
+		remaining := data
+
+		for len(remaining) > 0 {
 			select {
 			case <-ctx.Done():
 				errs <- ctx.Err()
@@ -89,23 +101,12 @@ func (c *FastCDC) Chunk(ctx context.Context, reader io.Reader) (<-chan Chunk, <-
 			default:
 			}
 
-			// Read up to MaxSize bytes
-			n, err := io.ReadFull(reader, buffer)
-			if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-				errs <- err
-				return
-			}
-
-			if n == 0 {
-				return // Done
-			}
-
-			// Find chunk boundary using FastCDC algorithm
-			chunkSize := c.findBoundary(buffer[:n])
+			// Find chunk boundary
+			chunkSize := c.findBoundary(remaining)
 
 			// Calculate hash of chunk
 			hasher := sha256.New()
-			hasher.Write(buffer[:chunkSize])
+			hasher.Write(remaining[:chunkSize])
 			hash := hex.EncodeToString(hasher.Sum(nil))
 
 			chunk := Chunk{
@@ -114,7 +115,7 @@ func (c *FastCDC) Chunk(ctx context.Context, reader io.Reader) (<-chan Chunk, <-
 				Size:   int64(chunkSize),
 				Data:   make([]byte, chunkSize),
 			}
-			copy(chunk.Data, buffer[:chunkSize])
+			copy(chunk.Data, remaining[:chunkSize])
 
 			select {
 			case <-ctx.Done():
@@ -124,21 +125,7 @@ func (c *FastCDC) Chunk(ctx context.Context, reader io.Reader) (<-chan Chunk, <-
 			}
 
 			offset += int64(chunkSize)
-
-			// If we read less than MaxSize and found a boundary before end,
-			// we need to "push back" the remaining bytes
-			if chunkSize < n {
-				// Create a new reader that prepends the leftover bytes
-				remaining := buffer[chunkSize:n]
-				reader = io.MultiReader(
-					&bytesReader{data: remaining},
-					reader,
-				)
-			}
-
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				return // Last chunk processed
-			}
+			remaining = remaining[chunkSize:]
 		}
 	}()
 
@@ -224,7 +211,11 @@ func (c *FastCDC) findBoundary(data []byte) int {
 		i++
 	}
 
-	// Hit MaxSize without finding boundary
+	// Hit MaxSize (or end of data) without finding boundary
+	// Return the smaller of MaxSize or data length
+	if n < c.config.MaxSize {
+		return n
+	}
 	return c.config.MaxSize
 }
 

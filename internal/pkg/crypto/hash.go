@@ -120,3 +120,41 @@ func ValidateSHA256(hash string) bool {
 	}
 	return true
 }
+
+// HashingWriter wraps an io.Writer and computes SHA-256 while writing.
+// This is useful for streaming scenarios where you need to calculate
+// the hash while writing to another destination.
+type HashingWriter struct {
+	writer io.Writer
+	sha256 hash.Hash
+	size   int64
+}
+
+// NewHashingWriter creates a new HashingWriter that computes SHA-256.
+func NewHashingWriter(w io.Writer) *HashingWriter {
+	return &HashingWriter{
+		writer: w,
+		sha256: sha256.New(),
+	}
+}
+
+// Write implements io.Writer and updates hash computation.
+func (h *HashingWriter) Write(p []byte) (n int, err error) {
+	n, err = h.writer.Write(p)
+	if n > 0 {
+		h.sha256.Write(p[:n])
+		h.size += int64(n)
+	}
+	return n, err
+}
+
+// Sum returns the hex-encoded SHA-256 hash.
+// Should only be called after writing is complete.
+func (h *HashingWriter) Sum() string {
+	return hex.EncodeToString(h.sha256.Sum(nil))
+}
+
+// Size returns the total number of bytes written.
+func (h *HashingWriter) Size() int64 {
+	return h.size
+}

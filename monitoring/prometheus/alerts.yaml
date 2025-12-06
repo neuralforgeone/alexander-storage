@@ -1,0 +1,193 @@
+groups:
+  - name: alexander-storage
+    rules:
+      # High-level availability alerts
+      - alert: AlexanderDown
+        expr: up{job="alexander"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alexander Storage is down"
+          description: "Alexander Storage instance {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: AlexanderHighErrorRate
+        expr: |
+          (
+            sum(rate(alexander_http_requests_total{job="alexander",code=~"5.."}[5m]))
+            /
+            sum(rate(alexander_http_requests_total{job="alexander"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in Alexander Storage"
+          description: "Error rate is {{ $value | humanizePercentage }} (>5%) for the last 5 minutes."
+
+      - alert: AlexanderCriticalErrorRate
+        expr: |
+          (
+            sum(rate(alexander_http_requests_total{job="alexander",code=~"5.."}[5m]))
+            /
+            sum(rate(alexander_http_requests_total{job="alexander"}[5m]))
+          ) > 0.20
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical error rate in Alexander Storage"
+          description: "Error rate is {{ $value | humanizePercentage }} (>20%) for the last 2 minutes."
+
+      # Latency alerts
+      - alert: AlexanderHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(alexander_http_request_duration_seconds_bucket{job="alexander"}[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P95 latency in Alexander Storage"
+          description: "P95 latency is {{ $value | humanizeDuration }} (>1s) for the last 5 minutes."
+
+      - alert: AlexanderVeryHighLatency
+        expr: |
+          histogram_quantile(0.99, sum(rate(alexander_http_request_duration_seconds_bucket{job="alexander"}[5m])) by (le)) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Very high P99 latency in Alexander Storage"
+          description: "P99 latency is {{ $value | humanizeDuration }} (>5s) for the last 5 minutes."
+
+      # Rate limiting alerts
+      - alert: AlexanderHighRateLimiting
+        expr: |
+          (
+            sum(rate(alexander_rate_limit_requests_total{job="alexander",limited="true"}[5m]))
+            /
+            sum(rate(alexander_http_requests_total{job="alexander"}[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate limiting in Alexander Storage"
+          description: "{{ $value | humanizePercentage }} of requests are being rate limited."
+
+      # Authentication alerts
+      - alert: AlexanderHighAuthFailures
+        expr: |
+          (
+            sum(rate(alexander_auth_attempts_total{job="alexander",result="failure"}[5m]))
+            /
+            sum(rate(alexander_auth_attempts_total{job="alexander"}[5m]))
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value | humanizePercentage }} of authentication attempts are failing."
+
+      - alert: AlexanderPossibleBruteForce
+        expr: |
+          sum(rate(alexander_auth_attempts_total{job="alexander",result="failure"}[1m])) > 100
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Possible brute force attack detected"
+          description: "Over 100 failed authentication attempts per minute detected."
+
+      # Storage alerts
+      - alert: AlexanderStorageErrors
+        expr: |
+          sum(rate(alexander_storage_operations_total{job="alexander",status="error"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Storage operation errors detected"
+          description: "Storage operations are failing at {{ $value }} errors/second."
+
+      # Garbage collection alerts
+      - alert: AlexanderGCFailed
+        expr: |
+          increase(alexander_gc_runs_total{job="alexander",status="failed"}[1h]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Garbage collection failed"
+          description: "GC run failed in the last hour. Check logs for details."
+
+      - alert: AlexanderGCNotRunning
+        expr: |
+          time() - alexander_gc_last_run_timestamp{job="alexander"} > 7200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Garbage collection not running"
+          description: "GC has not run for over 2 hours. Expected interval is 1 hour."
+
+      # Health check alerts
+      - alert: AlexanderUnhealthy
+        expr: |
+          alexander_health_status{job="alexander"} != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alexander Storage health check failing"
+          description: "Health check is reporting unhealthy status."
+
+      - alert: AlexanderDatabaseUnhealthy
+        expr: |
+          alexander_health_component_status{job="alexander",component="database"} != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database health check failing"
+          description: "Database component is unhealthy."
+
+      - alert: AlexanderStorageUnhealthy
+        expr: |
+          alexander_health_component_status{job="alexander",component="storage"} != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Storage health check failing"
+          description: "Storage component is unhealthy."
+
+      # Resource alerts (if using Kubernetes)
+      - alert: AlexanderHighMemoryUsage
+        expr: |
+          (
+            container_memory_working_set_bytes{container="alexander"}
+            /
+            container_spec_memory_limit_bytes{container="alexander"}
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage in Alexander container"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit."
+
+      - alert: AlexanderHighCPUUsage
+        expr: |
+          (
+            sum(rate(container_cpu_usage_seconds_total{container="alexander"}[5m]))
+            /
+            sum(container_spec_cpu_quota{container="alexander"} / container_spec_cpu_period{container="alexander"})
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage in Alexander container"
+          description: "CPU usage is {{ $value | humanizePercentage }} of limit."

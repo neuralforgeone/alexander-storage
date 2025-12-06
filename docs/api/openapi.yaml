@@ -1,0 +1,722 @@
+openapi: 3.0.3
+info:
+  title: Alexander Storage API
+  description: |
+    S3-compatible object storage API.
+    
+    Alexander Storage provides a subset of the Amazon S3 API for object storage operations.
+    It is compatible with standard S3 clients and SDKs.
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  contact:
+    name: Alexander Storage
+    url: https://github.com/neuralforgeone/alexander-storage
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://s3.example.com
+    description: Production server
+
+tags:
+  - name: Buckets
+    description: Bucket operations
+  - name: Objects
+    description: Object operations
+  - name: Multipart
+    description: Multipart upload operations
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  /:
+    get:
+      tags:
+        - Buckets
+      summary: List all buckets
+      operationId: listBuckets
+      security:
+        - sigv4: []
+      responses:
+        '200':
+          description: List of buckets
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ListBucketsResult'
+        '403':
+          $ref: '#/components/responses/AccessDenied'
+
+  /{bucket}:
+    parameters:
+      - $ref: '#/components/parameters/BucketName'
+    
+    put:
+      tags:
+        - Buckets
+      summary: Create a bucket
+      operationId: createBucket
+      security:
+        - sigv4: []
+      responses:
+        '200':
+          description: Bucket created successfully
+        '409':
+          $ref: '#/components/responses/BucketAlreadyExists'
+
+    delete:
+      tags:
+        - Buckets
+      summary: Delete a bucket
+      operationId: deleteBucket
+      security:
+        - sigv4: []
+      responses:
+        '204':
+          description: Bucket deleted successfully
+        '404':
+          $ref: '#/components/responses/NoSuchBucket'
+        '409':
+          $ref: '#/components/responses/BucketNotEmpty'
+
+    head:
+      tags:
+        - Buckets
+      summary: Check if bucket exists
+      operationId: headBucket
+      security:
+        - sigv4: []
+      responses:
+        '200':
+          description: Bucket exists
+        '404':
+          $ref: '#/components/responses/NoSuchBucket'
+
+    get:
+      tags:
+        - Objects
+      summary: List objects in a bucket
+      operationId: listObjects
+      security:
+        - sigv4: []
+      parameters:
+        - name: list-type
+          in: query
+          schema:
+            type: integer
+            enum: [2]
+          description: Use list-type=2 for ListObjectsV2
+        - name: prefix
+          in: query
+          schema:
+            type: string
+          description: Limits results to keys that begin with the specified prefix
+        - name: delimiter
+          in: query
+          schema:
+            type: string
+          description: Character used to group keys
+        - name: max-keys
+          in: query
+          schema:
+            type: integer
+            default: 1000
+          description: Maximum number of keys to return
+        - name: continuation-token
+          in: query
+          schema:
+            type: string
+          description: Token for pagination
+        - name: versions
+          in: query
+          schema:
+            type: string
+          description: If present, list object versions
+      responses:
+        '200':
+          description: List of objects
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ListObjectsV2Result'
+        '404':
+          $ref: '#/components/responses/NoSuchBucket'
+
+  /{bucket}?versioning:
+    parameters:
+      - $ref: '#/components/parameters/BucketName'
+    
+    get:
+      tags:
+        - Buckets
+      summary: Get bucket versioning status
+      operationId: getBucketVersioning
+      security:
+        - sigv4: []
+      responses:
+        '200':
+          description: Versioning configuration
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/VersioningConfiguration'
+
+    put:
+      tags:
+        - Buckets
+      summary: Set bucket versioning
+      operationId: putBucketVersioning
+      security:
+        - sigv4: []
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/VersioningConfiguration'
+      responses:
+        '200':
+          description: Versioning updated
+
+  /{bucket}/{key}:
+    parameters:
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ObjectKey'
+
+    put:
+      tags:
+        - Objects
+      summary: Upload an object
+      operationId: putObject
+      security:
+        - sigv4: []
+      parameters:
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+        - name: x-amz-meta-*
+          in: header
+          schema:
+            type: string
+          description: Custom metadata headers
+      requestBody:
+        required: true
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Object uploaded
+          headers:
+            ETag:
+              schema:
+                type: string
+            x-amz-version-id:
+              schema:
+                type: string
+
+    get:
+      tags:
+        - Objects
+      summary: Download an object
+      operationId: getObject
+      security:
+        - sigv4: []
+      parameters:
+        - name: versionId
+          in: query
+          schema:
+            type: string
+          description: Version ID to retrieve
+        - name: Range
+          in: header
+          schema:
+            type: string
+          description: Byte range to retrieve
+      responses:
+        '200':
+          description: Object content
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            Content-Length:
+              schema:
+                type: integer
+            ETag:
+              schema:
+                type: string
+            Last-Modified:
+              schema:
+                type: string
+            x-amz-version-id:
+              schema:
+                type: string
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NoSuchKey'
+
+    head:
+      tags:
+        - Objects
+      summary: Get object metadata
+      operationId: headObject
+      security:
+        - sigv4: []
+      parameters:
+        - name: versionId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object metadata
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            Content-Length:
+              schema:
+                type: integer
+            ETag:
+              schema:
+                type: string
+            Last-Modified:
+              schema:
+                type: string
+            x-amz-version-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NoSuchKey'
+
+    delete:
+      tags:
+        - Objects
+      summary: Delete an object
+      operationId: deleteObject
+      security:
+        - sigv4: []
+      parameters:
+        - name: versionId
+          in: query
+          schema:
+            type: string
+          description: Version ID to delete
+      responses:
+        '204':
+          description: Object deleted
+          headers:
+            x-amz-delete-marker:
+              schema:
+                type: boolean
+            x-amz-version-id:
+              schema:
+                type: string
+
+  /{bucket}/{key}?uploads:
+    parameters:
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ObjectKey'
+
+    post:
+      tags:
+        - Multipart
+      summary: Initiate multipart upload
+      operationId: createMultipartUpload
+      security:
+        - sigv4: []
+      responses:
+        '200':
+          description: Multipart upload initiated
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/InitiateMultipartUploadResult'
+
+  /{bucket}/{key}?partNumber={partNumber}&uploadId={uploadId}:
+    parameters:
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ObjectKey'
+      - name: partNumber
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - name: uploadId
+        in: query
+        required: true
+        schema:
+          type: string
+
+    put:
+      tags:
+        - Multipart
+      summary: Upload a part
+      operationId: uploadPart
+      security:
+        - sigv4: []
+      requestBody:
+        required: true
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Part uploaded
+          headers:
+            ETag:
+              schema:
+                type: string
+
+  /{bucket}/{key}?uploadId={uploadId}:
+    parameters:
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ObjectKey'
+      - name: uploadId
+        in: query
+        required: true
+        schema:
+          type: string
+
+    post:
+      tags:
+        - Multipart
+      summary: Complete multipart upload
+      operationId: completeMultipartUpload
+      security:
+        - sigv4: []
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/CompleteMultipartUpload'
+      responses:
+        '200':
+          description: Upload completed
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/CompleteMultipartUploadResult'
+
+    delete:
+      tags:
+        - Multipart
+      summary: Abort multipart upload
+      operationId: abortMultipartUpload
+      security:
+        - sigv4: []
+      responses:
+        '204':
+          description: Upload aborted
+
+    get:
+      tags:
+        - Multipart
+      summary: List parts
+      operationId: listParts
+      security:
+        - sigv4: []
+      responses:
+        '200':
+          description: List of uploaded parts
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/ListPartsResult'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Full health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: System healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: System unhealthy
+
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Liveness probe
+      operationId: liveness
+      responses:
+        '200':
+          description: Service is alive
+        '503':
+          description: Service is not alive
+
+  /readyz:
+    get:
+      tags:
+        - Health
+      summary: Readiness probe
+      operationId: readiness
+      responses:
+        '200':
+          description: Service is ready
+        '503':
+          description: Service is not ready
+
+components:
+  securitySchemes:
+    sigv4:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: AWS Signature Version 4
+
+  parameters:
+    BucketName:
+      name: bucket
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+      description: Bucket name
+
+    ObjectKey:
+      name: key
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Object key
+
+  responses:
+    AccessDenied:
+      description: Access denied
+      content:
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NoSuchBucket:
+      description: Bucket not found
+      content:
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NoSuchKey:
+      description: Object not found
+      content:
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    BucketAlreadyExists:
+      description: Bucket already exists
+      content:
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    BucketNotEmpty:
+      description: Bucket is not empty
+      content:
+        application/xml:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      xml:
+        name: Error
+      properties:
+        Code:
+          type: string
+        Message:
+          type: string
+        Resource:
+          type: string
+        RequestId:
+          type: string
+
+    ListBucketsResult:
+      type: object
+      xml:
+        name: ListAllMyBucketsResult
+      properties:
+        Owner:
+          type: object
+          properties:
+            ID:
+              type: string
+            DisplayName:
+              type: string
+        Buckets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bucket'
+
+    Bucket:
+      type: object
+      properties:
+        Name:
+          type: string
+        CreationDate:
+          type: string
+          format: date-time
+
+    ListObjectsV2Result:
+      type: object
+      xml:
+        name: ListBucketResult
+      properties:
+        Name:
+          type: string
+        Prefix:
+          type: string
+        KeyCount:
+          type: integer
+        MaxKeys:
+          type: integer
+        IsTruncated:
+          type: boolean
+        Contents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Object'
+        CommonPrefixes:
+          type: array
+          items:
+            type: object
+            properties:
+              Prefix:
+                type: string
+
+    Object:
+      type: object
+      properties:
+        Key:
+          type: string
+        LastModified:
+          type: string
+          format: date-time
+        ETag:
+          type: string
+        Size:
+          type: integer
+        StorageClass:
+          type: string
+
+    VersioningConfiguration:
+      type: object
+      xml:
+        name: VersioningConfiguration
+      properties:
+        Status:
+          type: string
+          enum:
+            - Enabled
+            - Suspended
+
+    InitiateMultipartUploadResult:
+      type: object
+      xml:
+        name: InitiateMultipartUploadResult
+      properties:
+        Bucket:
+          type: string
+        Key:
+          type: string
+        UploadId:
+          type: string
+
+    CompleteMultipartUpload:
+      type: object
+      xml:
+        name: CompleteMultipartUpload
+      properties:
+        Part:
+          type: array
+          items:
+            type: object
+            properties:
+              PartNumber:
+                type: integer
+              ETag:
+                type: string
+
+    CompleteMultipartUploadResult:
+      type: object
+      xml:
+        name: CompleteMultipartUploadResult
+      properties:
+        Location:
+          type: string
+        Bucket:
+          type: string
+        Key:
+          type: string
+        ETag:
+          type: string
+
+    ListPartsResult:
+      type: object
+      xml:
+        name: ListPartsResult
+      properties:
+        Bucket:
+          type: string
+        Key:
+          type: string
+        UploadId:
+          type: string
+        Part:
+          type: array
+          items:
+            type: object
+            properties:
+              PartNumber:
+                type: integer
+              LastModified:
+                type: string
+                format: date-time
+              ETag:
+                type: string
+              Size:
+                type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+        components:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+              latency_ms:
+                type: integer

@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alexander-data
+  labels:
+    app: alexander-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # Uncomment to use a specific storage class
+  # storageClassName: fast-ssd
+
+---
+# For production with larger data sets, consider separate PVCs
+# for database and blob storage
+
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: alexander-db
+#   labels:
+#     app: alexander-storage
+#     component: database
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 5Gi
+#   storageClassName: fast-ssd
+#
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: alexander-blobs
+#   labels:
+#     app: alexander-storage
+#     component: storage
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 100Gi
+#   storageClassName: standard
