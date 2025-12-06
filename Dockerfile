@@ -1,5 +1,8 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -16,14 +19,26 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the server binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+# Build the server binary (cross-compile for target platform)
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -ldflags='-w -s -extldflags "-static"' \
     -o /bin/alexander-server \
     ./cmd/alexander-server
 
-# Final stage
-FROM alpine:3.23
+# Build admin CLI
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -o /bin/alexander-admin \
+    ./cmd/alexander-admin
+
+# Build migrate tool
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -o /bin/alexander-migrate \
+    ./cmd/alexander-migrate
+
+# Final stage - use same platform as target
+FROM alpine:3.21
 
 # Install runtime dependencies
 RUN apk add --no-cache ca-certificates tzdata
@@ -36,8 +51,10 @@ RUN addgroup -g 1000 alexander && \
 RUN mkdir -p /data /config && \
     chown -R alexander:alexander /data /config
 
-# Copy binary from builder
+# Copy binaries from builder
 COPY --from=builder /bin/alexander-server /usr/local/bin/
+COPY --from=builder /bin/alexander-admin /usr/local/bin/
+COPY --from=builder /bin/alexander-migrate /usr/local/bin/
 
 # Copy default config
 COPY configs/config.yaml.example /config/config.yaml
@@ -46,14 +63,14 @@ COPY configs/config.yaml.example /config/config.yaml
 USER alexander
 
 # Expose ports
-EXPOSE 8080 8443
+EXPOSE 8080 9091
 
 # Set data volume
 VOLUME ["/data", "/config"]
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1
 
 # Run the server
 ENTRYPOINT ["alexander-server"]
