@@ -657,16 +657,67 @@ GET  /dashboard/users    → User management
 
 ---
 
+### Decision 12: Multi-Architecture Docker Build Strategy
+
+**Date**: 2025-12-06  
+**Status**: ✅ Approved & Implemented  
+
+**Context**: Docker multi-platform build failed with QEMU emulation error on ARM64.
+
+**Problem**: Alpine 3.23 `apk add` triggers failed in ARM64 emulation:
+```
+ERROR: lib/apk/exec/busybox-1.37.0-r29.trigger: exited with error 127
+```
+
+**Decision**: Use Go's native cross-compilation instead of QEMU emulation.
+
+**Implementation**:
+```dockerfile
+# Builder runs on host platform (no QEMU)
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
+
+# Cross-compile for target platform
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build ...
+
+# Final image uses target platform
+FROM alpine:3.21
+```
+
+**Key Changes**:
+- `--platform=$BUILDPLATFORM`: Builder always runs native (no emulation)
+- `TARGETOS/TARGETARCH`: Build arguments for cross-compilation
+- `CGO_ENABLED=0`: Pure Go, no C dependencies
+- Alpine 3.21: More stable than 3.23 for cross-platform
+- All three binaries included: server, admin, migrate
+
+**Rationale**:
+- Go excels at cross-compilation - no need for slow QEMU
+- Build time reduced significantly (~3 min vs ~15 min)
+- More reliable - no emulation quirks
+- Same binary output, just different build process
+
+---
+
 ## Section 4: Current Context
 
 ### Active Development Phase
 **Phase 10: Future Enhancements** (Planning)
 
 ### Current Task
-Phase 9 completed. All advanced features implemented: Bucket ACL, Lifecycle Rules, SSE-S3 Encryption, Web Dashboard, Admin CLI encrypt command.
+v1.0.0 Released! First stable release published to GitHub with multi-platform binaries and Docker images.
 
 ### Last Updated
 2025-12-06
+
+### Release Information
+**v1.0.0** - First Stable Release (2025-12-06)
+- Multi-platform binaries: Linux (amd64/arm64), macOS (amd64/arm64), Windows (amd64)
+- Docker images: `ghcr.io/neuralforgeone/alexander-storage:1.0.0` (linux/amd64, linux/arm64)
+- Installation scripts: `scripts/install.sh` (Linux/macOS), `scripts/install.ps1` (Windows)
+- Uninstall scripts: `scripts/uninstall.sh`, `scripts/uninstall.ps1`
 
 ### Completed Phases
 - ✅ Phase 1: Core Infrastructure
@@ -699,6 +750,10 @@ Phase 9 completed. All advanced features implemented: Bucket ACL, Lifecycle Rule
 - `internal/handler/templates/users.html` - User management page
 - `internal/handler/templates/error.html` - Error page template
 - `internal/handler/templates/bucket_list.html` - HTMX partial for bucket list
+- `scripts/install.sh` - Linux/macOS one-line installer
+- `scripts/install.ps1` - Windows PowerShell installer
+- `scripts/uninstall.sh` - Linux/macOS uninstaller
+- `scripts/uninstall.ps1` - Windows uninstaller
 
 **Files Modified:**
 - `internal/domain/bucket.go` - Added BucketACL type (private, public-read, public-read-write)
@@ -716,6 +771,9 @@ Phase 9 completed. All advanced features implemented: Bucket ACL, Lifecycle Rule
 - `cmd/alexander-admin/main.go` - Added encrypt command (status/run) with batch processing
 - `migrations/postgres/000001_init.up.sql` - Added sessions, lifecycle_rules tables, acl column
 - `internal/repository/sqlite/migrations/000001_init.up.sql` - Added same for SQLite
+- `Dockerfile` - Fixed multi-arch build with `--platform=$BUILDPLATFORM` and cross-compilation
+- `.github/workflows/release.yml` - Added install scripts to release archives
+- `README.md` - Added quick install instructions
 
 ### Pending Tasks (Phase 10)
 1. Cross-region replication
@@ -887,6 +945,8 @@ None currently.
 | 2025-12-06 | - | Phase 9 Implementation | Bucket ACL, Lifecycle Rules, SSE-S3, Web Dashboard |
 | 2025-12-06 | TD-008 | Identified | SSE master key rotation requires re-encryption tooling |
 | 2025-12-06 | TD-009 | Identified | Dashboard forms need CSRF token protection |
+| 2025-12-06 | - | Fixed Dockerfile | Multi-arch build with `--platform=$BUILDPLATFORM` for cross-compilation |
+| 2025-12-06 | - | v1.0.0 Released | First stable release with install scripts and Docker images |
 
 ---
 
@@ -1141,6 +1201,31 @@ make test
 ```
 URL: http://localhost:8080/dashboard
 Login: Use credentials from user create command
+```
+
+### Quick Install
+
+```bash
+# Linux/macOS (as root)
+curl -fsSL https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/scripts/install.sh | sudo bash
+
+# Windows (PowerShell as Administrator)
+irm https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/scripts/install.ps1 | iex
+
+# Docker
+docker run -d -p 8080:8080 -v alexander_data:/var/lib/alexander \
+  -e ALEXANDER_AUTH_MASTER_KEY=$(openssl rand -hex 32) \
+  ghcr.io/neuralforgeone/alexander-storage:latest
+```
+
+### Uninstall
+
+```bash
+# Linux/macOS
+curl -fsSL https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/scripts/uninstall.sh | sudo bash
+
+# Windows
+irm https://raw.githubusercontent.com/neuralforgeone/alexander-storage/main/scripts/uninstall.ps1 | iex
 ```
 
 ---
