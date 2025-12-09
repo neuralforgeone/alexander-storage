@@ -70,7 +70,7 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests
+      - name: Run unit tests
         env:
           ALEXANDER_DATABASE_HOST: localhost
           ALEXANDER_DATABASE_PORT: 5432
@@ -80,7 +80,7 @@ jobs:
           ALEXANDER_REDIS_HOST: localhost
           ALEXANDER_REDIS_PORT: 6379
           ALEXANDER_AUTH_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -v -race -short -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

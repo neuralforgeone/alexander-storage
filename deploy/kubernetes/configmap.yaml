@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: alexander-config
+  namespace: alexander
   labels:
     app: alexander-storage
 data:

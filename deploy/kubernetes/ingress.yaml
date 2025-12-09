@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: alexander-storage
+  namespace: alexander
   labels:
     app: alexander-storage
   annotations:
