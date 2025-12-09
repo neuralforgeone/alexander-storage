@@ -241,20 +241,5 @@ func (c *FastCDC) computeMask(avgSize, normLevel int) uint64 {
 	return (uint64(1) << bits) - 1
 }
 
-// bytesReader is a simple io.Reader wrapper for byte slices.
-type bytesReader struct {
-	data []byte
-	pos  int
-}
-
-func (r *bytesReader) Read(p []byte) (int, error) {
-	if r.pos >= len(r.data) {
-		return 0, io.EOF
-	}
-	n := copy(p, r.data[r.pos:])
-	r.pos += n
-	return n, nil
-}
-
 // Ensure FastCDC implements Chunker
 var _ Chunker = (*FastCDC)(nil)

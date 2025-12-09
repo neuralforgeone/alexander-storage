@@ -44,19 +44,8 @@ func getEnv(key, defaultValue string) string {
 func newS3Client(t *testing.T, cfg TestConfig) *s3.Client {
 	t.Helper()
 
-	customResolver := aws.EndpointResolverWithOptionsFunc(
-		func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				URL:               cfg.Endpoint,
-				HostnameImmutable: true,
-				SigningRegion:     cfg.Region,
-			}, nil
-		},
-	)
-
 	awsCfg, err := config.LoadDefaultConfig(context.Background(),
 		config.WithRegion(cfg.Region),
-		config.WithEndpointResolverWithOptions(customResolver),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			cfg.AccessKeyID,
 			cfg.SecretAccessKey,
@@ -67,6 +56,7 @@ func newS3Client(t *testing.T, cfg TestConfig) *s3.Client {
 
 	return s3.NewFromConfig(awsCfg, func(o *s3.Options) {
 		o.UsePathStyle = true
+		o.BaseEndpoint = aws.String(cfg.Endpoint)
 	})
 }
 
