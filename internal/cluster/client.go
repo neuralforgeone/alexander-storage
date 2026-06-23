@@ -6,11 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	pb "github.com/prn-tf/alexander-storage/internal/cluster/proto"
 )
 
 // ClientConfig contains configuration for connecting to a remote node.
@@ -40,13 +43,12 @@ func DefaultClientConfig() ClientConfig {
 	}
 }
 
-// Client implements NodeClient for communicating with a remote node.
-// Note: This is a simplified HTTP-based client. Full gRPC implementation
-// requires generated protobuf code.
+// Client implements NodeClient for communicating with a remote node via gRPC.
 type Client struct {
 	config     ClientConfig
 	logger     zerolog.Logger
-	httpClient *http.Client
+	conn       *grpc.ClientConn
+	rpc        pb.NodeServiceClient
 	mu         sync.RWMutex
 	closed     bool
 }
@@ -66,15 +68,22 @@ func NewClient(config ClientConfig, logger zerolog.Logger) (*Client, error) {
 		config.RetryDelay = DefaultClientConfig().RetryDelay
 	}
 
+	conn, err := grpc.NewClient(
+		config.Address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("dial gRPC: %w", err)
+	}
+
 	return &Client{
 		config: config,
 		logger: logger.With().
 			Str("component", "cluster-client").
 			Str("remote_address", config.Address).
 			Logger(),
-		httpClient: &http.Client{
-			Timeout: config.Timeout,
-		},
+		conn: conn,
+		rpc:  pb.NewNodeServiceClient(conn),
 	}, nil
 }
 
@@ -87,16 +96,34 @@ func (c *Client) Ping(ctx context.Context) (*Node, error) {
 	}
 	c.mu.RUnlock()
 
-	// TODO: Implement actual gRPC call when protobuf is generated
-	// For now, return a placeholder indicating the node is reachable
-	c.logger.Debug().Msg("Ping request")
+	ctx, cancel := context.WithTimeout(ctx, c.config.Timeout)
+	defer cancel()
 
-	return &Node{
-		ID:            c.config.NodeID,
+	resp, err := c.rpc.Ping(ctx, &pb.PingRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("ping failed: %w", err)
+	}
+
+	node := &Node{
+		ID:            resp.NodeId,
 		Address:       c.config.Address,
-		Status:        NodeStatusHealthy,
+		Role:          NodeRole(resp.Role),
+		Status:        NodeStatus(resp.Status),
 		LastHeartbeat: time.Now(),
-	}, nil
+	}
+	if resp.StorageStats != nil {
+		node.Stats = &StorageStats{
+			TotalBytes: resp.StorageStats.TotalBytes,
+			UsedBytes:  resp.StorageStats.UsedBytes,
+			FreeBytes:  resp.StorageStats.FreeBytes,
+			BlobCount:  resp.StorageStats.BlobCount,
+		}
+	}
+	if node.ID == "" {
+		node.ID = c.config.NodeID
+	}
+
+	return node, nil
 }
 
 // TransferBlob transfers a blob to this node.
@@ -108,13 +135,14 @@ func (c *Client) TransferBlob(ctx context.Context, contentHash string, size int6
 	}
 	c.mu.RUnlock()
 
-	c.logger.Debug().
-		Str("content_hash", contentHash).
-		Int64("size", size).
-		Msg("Initiating blob transfer")
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("failed to read blob data: %w", err)
+	}
+	if size > 0 && int64(len(data)) != size {
+		return fmt.Errorf("size mismatch: expected %d, got %d", size, len(data))
+	}
 
-	// TODO: Implement actual gRPC streaming call
-	// For now, simulate transfer with retry logic
 	var lastErr error
 	for attempt := 0; attempt < c.config.MaxRetries; attempt++ {
 		if attempt > 0 {
@@ -125,24 +153,16 @@ func (c *Client) TransferBlob(ctx context.Context, contentHash string, size int6
 			}
 		}
 
-		// Read all data (for retry capability)
-		data, err := io.ReadAll(reader)
-		if err != nil {
-			lastErr = fmt.Errorf("failed to read blob data: %w", err)
+		if err := c.transferBlobOnce(ctx, contentHash, size, data); err != nil {
+			lastErr = err
 			continue
 		}
 
-		if int64(len(data)) != size {
-			lastErr = fmt.Errorf("size mismatch: expected %d, got %d", size, len(data))
-			continue
-		}
-
-		// TODO: Send via gRPC
 		c.logger.Info().
 			Str("content_hash", contentHash).
 			Int64("size", size).
 			Int("attempt", attempt+1).
-			Msg("Blob transfer simulated (gRPC not implemented)")
+			Msg("Blob transfer completed")
 
 		return nil
 	}
@@ -150,22 +170,55 @@ func (c *Client) TransferBlob(ctx context.Context, contentHash string, size int6
 	return fmt.Errorf("%w: %v", ErrTransferFailed, lastErr)
 }
 
+func (c *Client) transferBlobOnce(ctx context.Context, contentHash string, size int64, data []byte) error {
+	ctx, cancel := context.WithTimeout(ctx, c.config.Timeout)
+	defer cancel()
+
+	stream, err := c.rpc.TransferBlob(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := stream.Send(&pb.TransferBlobRequest{
+		Payload: &pb.TransferBlobRequest_Metadata{
+			Metadata: &pb.BlobMetadata{
+				ContentHash: contentHash,
+				Size:        size,
+				BlobType:    "single",
+			},
+		},
+	}); err != nil {
+		return err
+	}
+
+	for offset := 0; offset < len(data); offset += grpcChunkSize {
+		end := offset + grpcChunkSize
+		if end > len(data) {
+			end = len(data)
+		}
+		if err := stream.Send(&pb.TransferBlobRequest{
+			Payload: &pb.TransferBlobRequest_DataChunk{DataChunk: data[offset:end]},
+		}); err != nil {
+			return err
+		}
+	}
+
+	resp, err := stream.CloseAndRecv()
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		if resp.ErrorMessage != "" {
+			return errors.New(resp.ErrorMessage)
+		}
+		return ErrTransferFailed
+	}
+	return nil
+}
+
 // RetrieveBlob retrieves a blob from this node.
 func (c *Client) RetrieveBlob(ctx context.Context, contentHash string) (io.ReadCloser, error) {
-	c.mu.RLock()
-	if c.closed {
-		c.mu.RUnlock()
-		return nil, errors.New("client is closed")
-	}
-	c.mu.RUnlock()
-
-	c.logger.Debug().
-		Str("content_hash", contentHash).
-		Msg("Retrieving blob")
-
-	// TODO: Implement actual gRPC streaming call
-	// For now, return an error indicating not implemented
-	return nil, errors.New("gRPC not implemented - requires protobuf generation")
+	return c.RetrieveBlobRange(ctx, contentHash, 0, 0)
 }
 
 // RetrieveBlobRange retrieves a range of bytes from a blob.
@@ -177,14 +230,33 @@ func (c *Client) RetrieveBlobRange(ctx context.Context, contentHash string, offs
 	}
 	c.mu.RUnlock()
 
-	c.logger.Debug().
-		Str("content_hash", contentHash).
-		Int64("offset", offset).
-		Int64("length", length).
-		Msg("Retrieving blob range")
+	ctx, cancel := context.WithTimeout(ctx, c.config.Timeout)
+	defer cancel()
 
-	// TODO: Implement actual gRPC streaming call
-	return nil, errors.New("gRPC not implemented - requires protobuf generation")
+	stream, err := c.rpc.RetrieveBlob(ctx, &pb.RetrieveBlobRequest{
+		ContentHash: contentHash,
+		Offset:      offset,
+		Length:      length,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("retrieve failed: %w", err)
+	}
+
+	var buf bytes.Buffer
+	for {
+		resp, recvErr := stream.Recv()
+		if errors.Is(recvErr, io.EOF) {
+			break
+		}
+		if recvErr != nil {
+			return nil, recvErr
+		}
+		if chunk := resp.GetDataChunk(); chunk != nil {
+			buf.Write(chunk)
+		}
+	}
+
+	return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }
 
 // DeleteBlob deletes a blob from this node.
@@ -196,15 +268,21 @@ func (c *Client) DeleteBlob(ctx context.Context, contentHash string) error {
 	}
 	c.mu.RUnlock()
 
-	c.logger.Debug().
-		Str("content_hash", contentHash).
-		Msg("Deleting blob")
+	ctx, cancel := context.WithTimeout(ctx, c.config.Timeout)
+	defer cancel()
 
-	// TODO: Implement actual gRPC call
-	c.logger.Info().
-		Str("content_hash", contentHash).
-		Msg("Blob deletion simulated (gRPC not implemented)")
+	resp, err := c.rpc.DeleteBlob(ctx, &pb.DeleteBlobRequest{ContentHash: contentHash})
+	if err != nil {
+		return fmt.Errorf("delete failed: %w", err)
+	}
+	if !resp.Success {
+		if resp.ErrorMessage != "" {
+			return errors.New(resp.ErrorMessage)
+		}
+		return ErrTransferFailed
+	}
 
+	c.logger.Info().Str("content_hash", contentHash).Msg("Blob deleted")
 	return nil
 }
 
@@ -217,12 +295,14 @@ func (c *Client) BlobExists(ctx context.Context, contentHash string) (bool, erro
 	}
 	c.mu.RUnlock()
 
-	c.logger.Debug().
-		Str("content_hash", contentHash).
-		Msg("Checking blob existence")
+	ctx, cancel := context.WithTimeout(ctx, c.config.Timeout)
+	defer cancel()
 
-	// TODO: Implement actual gRPC call
-	return false, errors.New("gRPC not implemented - requires protobuf generation")
+	resp, err := c.rpc.GetBlobMetadata(ctx, &pb.GetBlobMetadataRequest{ContentHash: contentHash})
+	if err != nil {
+		return false, fmt.Errorf("metadata lookup failed: %w", err)
+	}
+	return resp.Exists, nil
 }
 
 // Close closes the client connection.
@@ -235,7 +315,11 @@ func (c *Client) Close() error {
 	}
 
 	c.closed = true
-	c.httpClient.CloseIdleConnections()
+	if c.conn != nil {
+		if err := c.conn.Close(); err != nil {
+			return err
+		}
+	}
 	c.logger.Debug().Msg("Client closed")
 	return nil
 }
@@ -265,11 +349,9 @@ func (p *ClientPool) GetClient(nodeID, address string) (*Client, error) {
 		return client, nil
 	}
 
-	// Create new client
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Double-check after acquiring write lock
 	if client, exists = p.clients[nodeID]; exists {
 		return client, nil
 	}

@@ -64,3 +64,4 @@ ehthumbs.db
 # Profiling
 *.pprof
 *.prof
+/mcps

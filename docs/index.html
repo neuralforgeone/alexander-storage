@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alexander Storage Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Alexander Storage</h1>
+    <p>Production-ready, S3-compatible object storage written in Go.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Getting Started</h2>
+      <ul>
+        <li><a href="guides/quickstart.md">Quick Start Guide</a></li>
+        <li><a href="guides/production.md">Production Deployment</a></li>
+        <li><a href="guides/troubleshooting.md">Troubleshooting</a></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Operations</h2>
+      <ul>
+        <li><a href="operations/performance-tuning.md">Performance Tuning</a></li>
+        <li><a href="operations/backup-dr.md">Backup &amp; Recovery</a></li>
+        <li><a href="operations/runbooks.md">Runbooks</a></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>API</h2>
+      <ul>
+        <li><a href="api/openapi.yaml">OpenAPI Specification</a></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Architecture Highlights</h2>
+      <ul>
+        <li>Content-addressable storage with automatic deduplication</li>
+        <li>AWS Signature V4 authentication and presigned URLs</li>
+        <li>Filesystem and S3 storage backends</li>
+        <li>gRPC cluster communication for multi-node deployments</li>
+        <li>PostgreSQL or SQLite metadata stores</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Alexander Storage &mdash; Apache 2.0 License</p>
+  </footer>
+</body>
+</html>

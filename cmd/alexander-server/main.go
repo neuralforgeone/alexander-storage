@@ -29,6 +29,7 @@ import (
 	"github.com/prn-tf/alexander-storage/internal/service"
 	"github.com/prn-tf/alexander-storage/internal/storage"
 	"github.com/prn-tf/alexander-storage/internal/storage/filesystem"
+	s3storage "github.com/prn-tf/alexander-storage/internal/storage/s3"
 )
 
 // Version information (set at build time)
@@ -335,10 +336,24 @@ func main() {
 
 // initStorageBackend initializes the storage backend based on configuration.
 func initStorageBackend(cfg *config.Config, logger zerolog.Logger) (storage.Backend, error) {
-	// For now, we only support filesystem backend
-	// TODO: Add support for other backends (S3, Azure Blob, etc.)
-	return filesystem.NewStorage(filesystem.Config{
-		DataDir: cfg.Storage.DataDir,
-		TempDir: cfg.Storage.TempDir,
-	}, logger)
+	switch cfg.Storage.Backend {
+	case "filesystem", "":
+		return filesystem.NewStorage(filesystem.Config{
+			DataDir: cfg.Storage.DataDir,
+			TempDir: cfg.Storage.TempDir,
+		}, logger)
+	case "s3":
+		ctx := context.Background()
+		return s3storage.NewStorage(ctx, s3storage.Config{
+			Endpoint:        cfg.Storage.S3.Endpoint,
+			Region:          cfg.Storage.S3.Region,
+			Bucket:          cfg.Storage.S3.Bucket,
+			AccessKeyID:     cfg.Storage.S3.AccessKeyID,
+			SecretAccessKey: cfg.Storage.S3.SecretAccessKey,
+			UseSSL:          cfg.Storage.S3.UseSSL,
+			Prefix:          "blobs",
+		}, logger)
+	default:
+		return nil, fmt.Errorf("unsupported storage backend: %s", cfg.Storage.Backend)
+	}
 }

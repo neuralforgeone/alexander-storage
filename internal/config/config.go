@@ -536,8 +536,17 @@ func (c *Config) Validate() error {
 	if c.Storage.Backend == "" {
 		return fmt.Errorf("storage.backend is required")
 	}
-	if c.Storage.Backend == "filesystem" && c.Storage.DataDir == "" {
-		return fmt.Errorf("storage.data_dir is required for filesystem backend")
+	switch c.Storage.Backend {
+	case "filesystem", "":
+		if c.Storage.DataDir == "" {
+			return fmt.Errorf("storage.data_dir is required for filesystem backend")
+		}
+	case "s3":
+		if c.Storage.S3.Bucket == "" {
+			return fmt.Errorf("storage.s3.bucket is required for s3 backend")
+		}
+	default:
+		return fmt.Errorf("unsupported storage.backend: %s", c.Storage.Backend)
 	}
 
 	// Validate auth configuration

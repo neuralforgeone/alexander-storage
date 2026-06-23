@@ -6,11 +6,14 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
+	"google.golang.org/grpc"
 
+	pb "github.com/prn-tf/alexander-storage/internal/cluster/proto"
 	"github.com/prn-tf/alexander-storage/internal/storage"
 )
 
@@ -79,6 +82,10 @@ type Server struct {
 	// Transfer semaphore
 	transferSem chan struct{}
 
+	// gRPC server
+	grpcServer *grpc.Server
+	listener   net.Listener
+
 	// Shutdown
 	shutdownCh chan struct{}
 	wg         sync.WaitGroup
@@ -118,8 +125,6 @@ func NewServer(config ServerConfig, blobStorage storage.Backend, logger zerolog.
 }
 
 // Start begins the gRPC server.
-// Note: Full gRPC implementation requires generated protobuf code.
-// This is a placeholder for the server structure.
 func (s *Server) Start() error {
 	s.logger.Info().
 		Str("node_id", s.config.NodeID).
@@ -140,6 +145,24 @@ func (s *Server) Start() error {
 	s.nodes[s.config.NodeID] = self
 	s.nodesMu.Unlock()
 
+	lis, err := net.Listen("tcp", s.config.Address)
+	if err != nil {
+		return err
+	}
+
+	grpcServer := grpc.NewServer()
+	pb.RegisterNodeServiceServer(grpcServer, NewGRPCService(s))
+	s.grpcServer = grpcServer
+	s.listener = lis
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		if err := grpcServer.Serve(lis); err != nil {
+			s.logger.Error().Err(err).Msg("gRPC server stopped")
+		}
+	}()
+
 	// Start background tasks
 	s.wg.Add(1)
 	go s.heartbeatChecker()
@@ -150,7 +173,19 @@ func (s *Server) Start() error {
 // Stop gracefully shuts down the server.
 func (s *Server) Stop() error {
 	s.logger.Info().Msg("Stopping cluster server")
-	close(s.shutdownCh)
+
+	if s.grpcServer != nil {
+		s.grpcServer.GracefulStop()
+	}
+	if s.listener != nil {
+		_ = s.listener.Close()
+	}
+
+	select {
+	case <-s.shutdownCh:
+	default:
+		close(s.shutdownCh)
+	}
 	s.wg.Wait()
 	return nil
 }
