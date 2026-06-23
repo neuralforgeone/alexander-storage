@@ -245,16 +245,22 @@ func (s *Server) GetSelfInfo() *Node {
 	return &nodeCopy
 }
 
-// getStorageStats retrieves current storage statistics.
+// getStorageStats retrieves current storage statistics from the backend when supported.
 func (s *Server) getStorageStats() *StorageStats {
-	// This would ideally come from the storage backend
-	// For now, return placeholder stats
-	return &StorageStats{
-		TotalBytes: 1024 * 1024 * 1024 * 100, // 100GB placeholder
-		UsedBytes:  0,
-		FreeBytes:  1024 * 1024 * 1024 * 100,
-		BlobCount:  0,
+	if provider, ok := s.storage.(storage.StatsProvider); ok {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		snap, err := provider.ComputeStats(ctx)
+		if err == nil && snap != nil {
+			return &StorageStats{
+				TotalBytes: snap.TotalBytes,
+				UsedBytes:  snap.UsedBytes,
+				FreeBytes:  snap.FreeBytes,
+				BlobCount:  snap.BlobCount,
+			}
+		}
 	}
+	return &StorageStats{}
 }
 
 // Ping handles the Ping RPC.

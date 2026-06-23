@@ -10,48 +10,76 @@
   <header>
     <h1>Alexander Storage</h1>
     <p>Production-ready, S3-compatible object storage written in Go.</p>
+    <p>Deploy metadata on PostgreSQL or embedded SQLite, store blobs on local disk or S3, and scale across nodes with gRPC clustering.</p>
   </header>
 
   <main>
     <section>
-      <h2>Getting Started</h2>
+      <h2>Quick Start</h2>
+      <p>Run with Docker in one command:</p>
+      <pre><code>docker run -d \
+  --name alexander \
+  -p 8080:8080 \
+  -p 9091:9091 \
+  -v alexander_data:/var/lib/alexander \
+  -e ALEXANDER_AUTH_MASTER_KEY=$(openssl rand -hex 32) \
+  ghcr.io/neuralforgeone/alexander-storage:latest</code></pre>
+      <p>Or build from source:</p>
+      <pre><code>go build -o alexander-server ./cmd/alexander-server
+./alexander-server --init-config
+./alexander-server --config config.yaml</code></pre>
+      <p><a href="viewer.html?doc=guides/quickstart.md">Full quick start guide &rarr;</a></p>
+    </section>
+
+    <section>
+      <h2>Guides</h2>
       <ul>
-        <li><a href="guides/quickstart.md">Quick Start Guide</a></li>
-        <li><a href="guides/production.md">Production Deployment</a></li>
-        <li><a href="guides/troubleshooting.md">Troubleshooting</a></li>
+        <li><a href="viewer.html?doc=guides/quickstart.md">Quick Start</a> — get running in 5 minutes</li>
+        <li><a href="viewer.html?doc=guides/production.md">Production Deployment</a> — configuration and best practices</li>
+        <li><a href="viewer.html?doc=guides/troubleshooting.md">Troubleshooting</a> — common issues and fixes</li>
       </ul>
     </section>
 
     <section>
       <h2>Operations</h2>
       <ul>
-        <li><a href="operations/performance-tuning.md">Performance Tuning</a></li>
-        <li><a href="operations/backup-dr.md">Backup &amp; Recovery</a></li>
-        <li><a href="operations/runbooks.md">Runbooks</a></li>
+        <li><a href="viewer.html?doc=operations/performance-tuning.md">Performance Tuning</a></li>
+        <li><a href="viewer.html?doc=operations/backup-dr.md">Backup &amp; Recovery</a></li>
+        <li><a href="viewer.html?doc=operations/runbooks.md">Runbooks</a></li>
       </ul>
     </section>
 
     <section>
       <h2>API</h2>
       <ul>
-        <li><a href="api/openapi.yaml">OpenAPI Specification</a></li>
+        <li><a href="api/openapi.yaml">OpenAPI Specification</a> — S3-compatible REST API</li>
       </ul>
     </section>
 
     <section>
       <h2>Architecture Highlights</h2>
       <ul>
-        <li>Content-addressable storage with automatic deduplication</li>
-        <li>AWS Signature V4 authentication and presigned URLs</li>
-        <li>Filesystem and S3 storage backends</li>
-        <li>gRPC cluster communication for multi-node deployments</li>
-        <li>PostgreSQL or SQLite metadata stores</li>
+        <li><strong>S3 API compatibility</strong> — works with aws-cli, boto3, and Terraform</li>
+        <li><strong>Content-addressable storage</strong> — SHA-256 deduplication</li>
+        <li><strong>Multiple backends</strong> — <code>filesystem</code> (default) and <code>s3</code></li>
+        <li><strong>Cluster support</strong> — gRPC inter-node blob transfer and replication</li>
+        <li><strong>Flexible metadata</strong> — PostgreSQL for production, SQLite for embedded/homelab</li>
+        <li><strong>AWS Signature V4</strong> — authentication and presigned URLs</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>CLI Tools</h2>
+      <ul>
+        <li><code>alexander-server</code> — S3-compatible HTTP API server</li>
+        <li><code>alexander-admin</code> — user and access key management</li>
+        <li><code>alexander-migrate</code> — database migrations (up, down, status, create, force, version)</li>
       </ul>
     </section>
   </main>
 
   <footer>
-    <p>Alexander Storage &mdash; Apache 2.0 License</p>
+    <p>Alexander Storage &mdash; Apache 2.0 License &mdash; <a href="https://github.com/neuralforgeone/alexander-storage">GitHub</a></p>
   </footer>
 </body>
 </html>

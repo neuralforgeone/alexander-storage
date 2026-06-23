@@ -1,0 +1,2 @@
+-- Rollback 000003_fusion_engine (SQLite)
+-- SQLite cannot drop columns easily; no-op rollback.

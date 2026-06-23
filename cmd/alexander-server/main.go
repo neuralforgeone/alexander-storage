@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -24,8 +23,7 @@ import (
 	"github.com/prn-tf/alexander-storage/internal/middleware"
 	"github.com/prn-tf/alexander-storage/internal/pkg/crypto"
 	"github.com/prn-tf/alexander-storage/internal/repository"
-	"github.com/prn-tf/alexander-storage/internal/repository/postgres"
-	"github.com/prn-tf/alexander-storage/internal/repository/sqlite"
+	"github.com/prn-tf/alexander-storage/internal/repository/bootstrap"
 	"github.com/prn-tf/alexander-storage/internal/service"
 	"github.com/prn-tf/alexander-storage/internal/storage"
 	"github.com/prn-tf/alexander-storage/internal/storage/filesystem"
@@ -65,69 +63,11 @@ func main() {
 
 	// Initialize database and repositories based on driver
 	ctx := context.Background()
-	var repos *repository.Repositories
-	var dbCloser func()
-	var dbHealth repository.DatabaseHealth
-
-	if cfg.Database.Driver == "sqlite" {
-		// SQLite / Embedded mode
-		log.Info().Str("driver", "sqlite").Str("path", cfg.Database.Path).Msg("Using embedded SQLite database")
-
-		// Ensure directory exists for SQLite database
-		if err := os.MkdirAll(filepath.Dir(cfg.Database.Path), 0755); err != nil {
-			log.Fatal().Err(err).Msg("Failed to create database directory")
-		}
-
-		sqliteDB, err := sqlite.NewDB(ctx, sqlite.Config{
-			Path:            cfg.Database.Path,
-			MaxOpenConns:    cfg.Database.MaxOpenConns,
-			MaxIdleConns:    cfg.Database.MaxIdleConns,
-			ConnMaxLifetime: cfg.Database.ConnMaxLifetime,
-			JournalMode:     cfg.Database.JournalMode,
-			BusyTimeout:     cfg.Database.BusyTimeout,
-			CacheSize:       cfg.Database.CacheSize,
-			SynchronousMode: cfg.Database.SynchronousMode,
-		}, log.Logger)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to connect to SQLite database")
-		}
-		dbCloser = func() { sqliteDB.Close() }
-		dbHealth = sqliteDB
-
-		// Run migrations
-		if err := sqliteDB.Migrate(ctx); err != nil {
-			log.Fatal().Err(err).Msg("Failed to run SQLite migrations")
-		}
-
-		repos = &repository.Repositories{
-			User:      sqlite.NewUserRepository(sqliteDB),
-			AccessKey: sqlite.NewAccessKeyRepository(sqliteDB),
-			Bucket:    sqlite.NewBucketRepository(sqliteDB),
-			Object:    sqlite.NewObjectRepository(sqliteDB),
-			Blob:      sqlite.NewBlobRepository(sqliteDB),
-			Multipart: sqlite.NewMultipartRepository(sqliteDB),
-		}
-	} else {
-		// PostgreSQL mode (default)
-		log.Info().Str("driver", "postgres").Str("host", cfg.Database.Host).Msg("Using PostgreSQL database")
-
-		pgDB, err := postgres.NewDB(ctx, cfg.Database, log.Logger)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to connect to PostgreSQL database")
-		}
-		dbCloser = func() { pgDB.Close() }
-		dbHealth = pgDB
-
-		repos = &repository.Repositories{
-			User:      postgres.NewUserRepository(pgDB),
-			AccessKey: postgres.NewAccessKeyRepository(pgDB),
-			Bucket:    postgres.NewBucketRepository(pgDB),
-			Object:    postgres.NewObjectRepository(pgDB),
-			Blob:      postgres.NewBlobRepository(pgDB),
-			Multipart: postgres.NewMultipartRepository(pgDB),
-		}
+	repos, dbHealth, err := initRepositories(ctx, cfg, log.Logger)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize database")
 	}
-	defer dbCloser()
+	defer dbHealth.Close()
 
 	log.Info().Msg("Connected to database")
 
@@ -332,6 +272,25 @@ func main() {
 	}
 
 	log.Info().Msg("Server stopped")
+}
+
+func initRepositories(ctx context.Context, cfg *config.Config, logger zerolog.Logger) (*repository.Repositories, repository.DatabaseHealth, error) {
+	switch cfg.Database.Driver {
+	case "sqlite":
+		logger.Info().Str("driver", "sqlite").Str("path", cfg.Database.Path).Msg("Using embedded SQLite database")
+		result, err := bootstrap.CreateSQLite(ctx, cfg.Database, logger)
+		if err != nil {
+			return nil, nil, err
+		}
+		return result.Repos, result.Database, nil
+	default:
+		logger.Info().Str("driver", "postgres").Str("host", cfg.Database.Host).Msg("Using PostgreSQL database")
+		result, err := bootstrap.CreatePostgres(ctx, cfg.Database, logger)
+		if err != nil {
+			return nil, nil, err
+		}
+		return result.Repos, result.Database, nil
+	}
 }
 
 // initStorageBackend initializes the storage backend based on configuration.

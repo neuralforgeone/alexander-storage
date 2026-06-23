@@ -164,7 +164,7 @@ func (g *GRPCService) DeleteBlob(ctx context.Context, req *pb.DeleteBlobRequest)
 
 	if err := g.server.DeleteBlob(ctx, req.ContentHash); err != nil {
 		if errors.Is(err, ErrBlobNotFound) || errors.Is(err, storage.ErrBlobNotFound) {
-			return &pb.DeleteBlobResponse{Success: false, ErrorMessage: "blob not found"}, nil
+			return nil, status.Error(codes.NotFound, "blob not found")
 		}
 		return nil, status.Errorf(codes.Internal, "delete failed: %v", err)
 	}
@@ -201,9 +201,39 @@ func (g *GRPCService) GetBlobMetadata(ctx context.Context, req *pb.GetBlobMetada
 	}, nil
 }
 
-// ListBlobs returns an empty stream (listing requires storage backend enumeration).
-func (g *GRPCService) ListBlobs(_ *pb.ListBlobsRequest, stream pb.NodeService_ListBlobsServer) error {
-	return stream.Send(&pb.ListBlobsResponse{})
+// ListBlobs streams blob metadata from the storage backend.
+func (g *GRPCService) ListBlobs(req *pb.ListBlobsRequest, stream pb.NodeService_ListBlobsServer) error {
+	lister, ok := g.server.storage.(storage.BlobLister)
+	if !ok {
+		return status.Error(codes.Unimplemented, "storage backend does not support listing")
+	}
+
+	limit := int(req.Limit)
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	entries, err := lister.ListBlobs(stream.Context(), req.Prefix, limit)
+	if err != nil {
+		return status.Errorf(codes.Internal, "list blobs failed: %v", err)
+	}
+
+	for i, entry := range entries {
+		resp := &pb.ListBlobsResponse{
+			Metadata: &pb.BlobMetadata{
+				ContentHash: entry.ContentHash,
+				Size:        entry.Size,
+				BlobType:    "single",
+			},
+		}
+		if i == len(entries)-1 {
+			resp.NextCursor = ""
+		}
+		if err := stream.Send(resp); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RegisterNode registers a remote node with this coordinator.

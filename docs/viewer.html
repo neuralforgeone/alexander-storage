@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alexander Storage Docs</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .doc-content { max-width: 860px; margin: 0 auto; padding: 1.5rem; }
+    .doc-content pre { background: #0b1220; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+    .doc-content code { background: #0b1220; padding: 0.1rem 0.35rem; border-radius: 4px; }
+    .doc-content pre code { background: transparent; padding: 0; }
+    .doc-content table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    .doc-content th, .doc-content td { border: 1px solid #334155; padding: 0.5rem 0.75rem; text-align: left; }
+    .doc-nav { max-width: 860px; margin: 0 auto; padding: 1rem 1.5rem 0; }
+  </style>
+</head>
+<body>
+  <div class="doc-nav"><a href="index.html">&larr; Back to documentation home</a></div>
+  <article id="content" class="doc-content">Loading...</article>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const doc = params.get('doc');
+    if (!doc || doc.includes('..')) {
+      document.getElementById('content').textContent = 'Invalid document path.';
+    } else {
+      fetch(doc)
+        .then(r => { if (!r.ok) throw new Error('not found'); return r.text(); })
+        .then(md => {
+          document.title = doc + ' — Alexander Storage';
+          document.getElementById('content').innerHTML = marked.parse(md);
+        })
+        .catch(() => {
+          document.getElementById('content').textContent = 'Document not found: ' + doc;
+        });
+    }
+  </script>
+</body>
+</html>

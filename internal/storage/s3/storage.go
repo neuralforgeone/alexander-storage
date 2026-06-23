@@ -149,7 +149,15 @@ func (s *Storage) Retrieve(ctx context.Context, contentHash string) (io.ReadClos
 
 // Delete removes a blob.
 func (s *Storage) Delete(ctx context.Context, contentHash string) error {
-	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+	exists, err := s.Exists(ctx, contentHash)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return storage.ErrBlobNotFound
+	}
+
+	_, err = s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.objectKey(contentHash)),
 	})

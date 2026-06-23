@@ -100,6 +100,19 @@ func TestGRPCClientServer_TransferRetrieveDelete(t *testing.T) {
 	require.False(t, exists)
 }
 
+func TestGRPCClientServer_DeleteBlobNotFound(t *testing.T) {
+	addr, cleanup := startTestGRPCServer(t)
+	defer cleanup()
+
+	client, err := NewClient(ClientConfig{Address: addr}, zerolog.Nop())
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	err = client.DeleteBlob(ctx, sha256Hex("missing"))
+	require.ErrorIs(t, err, ErrBlobNotFound)
+}
+
 func TestGRPCClientServer_RetrieveRange(t *testing.T) {
 	addr, cleanup := startTestGRPCServer(t)
 	defer cleanup()

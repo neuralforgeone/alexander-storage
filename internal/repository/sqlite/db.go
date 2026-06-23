@@ -8,6 +8,9 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -204,27 +207,51 @@ func (db *DB) Migrate(ctx context.Context) error {
 
 	db.logger.Info().Int("current_version", currentVersion).Msg("checking migrations")
 
-	// For now, we apply all migrations in a single file
-	// In a production system, you'd iterate through migration files
-	if currentVersion < 1 {
-		// Read and execute the init migration
-		migration, err := migrationsFS.ReadFile("migrations/000001_init.up.sql")
+	entries, err := migrationsFS.ReadDir("migrations")
+	if err != nil {
+		db.logger.Warn().Msg("embedded migrations not found, skipping auto-migration")
+		return nil
+	}
+
+	var files []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasSuffix(name, ".up.sql") {
+			files = append(files, name)
+		}
+	}
+	sort.Strings(files)
+
+	for _, file := range files {
+		version, err := migrationVersionFromName(file)
 		if err != nil {
-			// If embedded migrations not found, try to continue (migrations may be applied externally)
-			db.logger.Warn().Msg("embedded migrations not found, skipping auto-migration")
-			return nil
+			return err
+		}
+		if version <= currentVersion {
+			continue
 		}
 
-		if _, err := db.db.ExecContext(ctx, string(migration)); err != nil {
-			return fmt.Errorf("failed to apply migration 1: %w", err)
+		sqlBytes, err := migrationsFS.ReadFile("migrations/" + file)
+		if err != nil {
+			return fmt.Errorf("failed to read migration %s: %w", file, err)
 		}
-
-		if _, err := db.db.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (1)`); err != nil {
-			return fmt.Errorf("failed to record migration: %w", err)
+		if _, err := db.db.ExecContext(ctx, string(sqlBytes)); err != nil {
+			return fmt.Errorf("failed to apply migration %d: %w", version, err)
 		}
-
-		db.logger.Info().Int("version", 1).Msg("applied migration")
+		if _, err := db.db.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, version); err != nil {
+			return fmt.Errorf("failed to record migration %d: %w", version, err)
+		}
+		currentVersion = version
+		db.logger.Info().Int("version", version).Msg("applied migration")
 	}
 
 	return nil
+}
+
+func migrationVersionFromName(name string) (int, error) {
+	parts := strings.SplitN(name, "_", 2)
+	if len(parts) < 1 {
+		return 0, fmt.Errorf("invalid migration filename: %s", name)
+	}
+	return strconv.Atoi(parts[0])
 }

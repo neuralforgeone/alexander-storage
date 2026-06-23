@@ -2,8 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"sort"
-	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -17,47 +15,9 @@ func setupTestDB(t *testing.T) *DB {
 	ctx := context.Background()
 	db, err := NewDB(ctx, DefaultConfig(":memory:"), zerolog.Nop())
 	require.NoError(t, err)
-	require.NoError(t, applyAllTestMigrations(ctx, db))
+	require.NoError(t, db.Migrate(ctx))
 	t.Cleanup(func() { _ = db.Close() })
 	return db
-}
-
-func applyAllTestMigrations(ctx context.Context, db *DB) error {
-	entries, err := migrationsFS.ReadDir("migrations")
-	if err != nil {
-		return err
-	}
-
-	var files []string
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasSuffix(name, ".up.sql") {
-			files = append(files, name)
-		}
-	}
-	sort.Strings(files)
-
-	for _, file := range files {
-		sqlBytes, err := migrationsFS.ReadFile("migrations/" + file)
-		if err != nil {
-			return err
-		}
-		if _, err := db.ExecContext(ctx, string(sqlBytes)); err != nil {
-			return err
-		}
-	}
-
-	// Columns referenced by repositories but absent from embedded SQLite migrations.
-	for _, stmt := range []string{
-		`ALTER TABLE blobs ADD COLUMN encryption_iv TEXT`,
-		`ALTER TABLE blobs ADD COLUMN blob_type TEXT NOT NULL DEFAULT 'single'`,
-		`ALTER TABLE blobs ADD COLUMN encryption_scheme TEXT`,
-		`ALTER TABLE blobs ADD COLUMN delta_base_hash TEXT`,
-	} {
-		_, _ = db.ExecContext(ctx, stmt)
-	}
-
-	return nil
 }
 
 func TestBucketRepository_CreateAndGet(t *testing.T) {

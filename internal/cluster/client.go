@@ -11,7 +11,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/prn-tf/alexander-storage/internal/cluster/proto"
 )
@@ -273,13 +275,16 @@ func (c *Client) DeleteBlob(ctx context.Context, contentHash string) error {
 
 	resp, err := c.rpc.DeleteBlob(ctx, &pb.DeleteBlobRequest{ContentHash: contentHash})
 	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return ErrBlobNotFound
+		}
 		return fmt.Errorf("delete failed: %w", err)
 	}
 	if !resp.Success {
 		if resp.ErrorMessage != "" {
 			return errors.New(resp.ErrorMessage)
 		}
-		return ErrTransferFailed
+		return ErrBlobNotFound
 	}
 
 	c.logger.Info().Str("content_hash", contentHash).Msg("Blob deleted")
