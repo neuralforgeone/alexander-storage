@@ -56,9 +56,8 @@ CREATE INDEX idx_sessions_user_id ON sessions (user_id);
 CREATE INDEX idx_sessions_token ON sessions (token);
 CREATE INDEX idx_sessions_expires ON sessions (expires_at);
 
--- Index for expired session cleanup
-CREATE INDEX idx_sessions_cleanup ON sessions (expires_at) 
-WHERE expires_at < NOW();
+-- Index for expired session cleanup (queries filter expires_at < NOW() at runtime)
+CREATE INDEX idx_sessions_cleanup ON sessions (expires_at);
 
 -- ============================================
 -- LIFECYCLE RULES TABLE

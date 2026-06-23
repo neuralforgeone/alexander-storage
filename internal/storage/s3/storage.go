@@ -2,13 +2,13 @@
 package s3
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -97,13 +97,29 @@ func (s *Storage) objectKey(contentHash string) string {
 
 // Store stores content and returns its SHA-256 hash.
 func (s *Storage) Store(ctx context.Context, reader io.Reader, size int64) (string, error) {
-	hasher := sha256.New()
-	buf, err := io.ReadAll(io.TeeReader(reader, hasher))
+	tempFile, err := os.CreateTemp("", "s3-upload-*")
 	if err != nil {
-		return "", fmt.Errorf("read content: %w", err)
+		return "", fmt.Errorf("create temp file: %w", err)
 	}
-	if size > 0 && int64(len(buf)) != size {
-		return "", fmt.Errorf("size mismatch: expected %d, got %d", size, len(buf))
+	tempPath := tempFile.Name()
+	success := false
+	defer func() {
+		_ = tempFile.Close()
+		if !success {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	hasher := sha256.New()
+	written, err := io.Copy(tempFile, io.TeeReader(reader, hasher))
+	if err != nil {
+		return "", fmt.Errorf("stream content: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return "", fmt.Errorf("close temp file: %w", err)
+	}
+	if size > 0 && written != size {
+		return "", fmt.Errorf("size mismatch: expected %d, got %d", size, written)
 	}
 
 	contentHash := hex.EncodeToString(hasher.Sum(nil))
@@ -114,20 +130,30 @@ func (s *Storage) Store(ctx context.Context, reader io.Reader, size int64) (stri
 		return "", err
 	}
 	if exists {
+		_ = os.Remove(tempPath)
 		s.logger.Debug().Str("content_hash", contentHash).Msg("blob already exists in S3")
+		success = true
 		return contentHash, nil
 	}
+
+	uploadFile, err := os.Open(tempPath)
+	if err != nil {
+		return "", fmt.Errorf("open temp file: %w", err)
+	}
+	defer uploadFile.Close()
 
 	_, err = s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
 		Key:           aws.String(key),
-		Body:          bytes.NewReader(buf),
-		ContentLength: aws.Int64(int64(len(buf))),
+		Body:          uploadFile,
+		ContentLength: aws.Int64(written),
 	})
 	if err != nil {
 		return "", fmt.Errorf("put object: %w", err)
 	}
 
+	_ = os.Remove(tempPath)
+	success = true
 	return contentHash, nil
 }
 

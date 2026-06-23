@@ -45,6 +45,13 @@ func DefaultClientConfig() ClientConfig {
 	}
 }
 
+func grpcNotFound(err error) error {
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+		return ErrBlobNotFound
+	}
+	return nil
+}
+
 // Client implements NodeClient for communicating with a remote node via gRPC.
 type Client struct {
 	config     ClientConfig
@@ -241,6 +248,9 @@ func (c *Client) RetrieveBlobRange(ctx context.Context, contentHash string, offs
 		Length:      length,
 	})
 	if err != nil {
+		if nf := grpcNotFound(err); nf != nil {
+			return nil, nf
+		}
 		return nil, fmt.Errorf("retrieve failed: %w", err)
 	}
 
@@ -251,7 +261,10 @@ func (c *Client) RetrieveBlobRange(ctx context.Context, contentHash string, offs
 			break
 		}
 		if recvErr != nil {
-			return nil, recvErr
+			if nf := grpcNotFound(recvErr); nf != nil {
+				return nil, nf
+			}
+			return nil, fmt.Errorf("retrieve failed: %w", recvErr)
 		}
 		if chunk := resp.GetDataChunk(); chunk != nil {
 			buf.Write(chunk)
@@ -275,8 +288,8 @@ func (c *Client) DeleteBlob(ctx context.Context, contentHash string) error {
 
 	resp, err := c.rpc.DeleteBlob(ctx, &pb.DeleteBlobRequest{ContentHash: contentHash})
 	if err != nil {
-		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			return ErrBlobNotFound
+		if nf := grpcNotFound(err); nf != nil {
+			return nf
 		}
 		return fmt.Errorf("delete failed: %w", err)
 	}

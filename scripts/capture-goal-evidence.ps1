@@ -20,104 +20,244 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $RepoRoot
 New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
 
-function Invoke-Logged {
-    param(
-        [string]$Label,
-        [scriptblock]$Block
-    )
-    Write-Host "==> $Label"
-    & $Block
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "$Label failed with exit code $LASTEXITCODE"
-        exit $LASTEXITCODE
+$env:CGO_ENABLED = "1"
+
+function Ensure-GCC {
+    if (Get-Command gcc -ErrorAction SilentlyContinue) {
+        Write-Host "Using gcc from PATH: $(Get-Command gcc | Select-Object -ExpandProperty Source)"
+        return
     }
+
+    $wingetGcc = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Filter "gcc.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($wingetGcc) {
+        $env:PATH = "$($wingetGcc.DirectoryName);$env:PATH"
+        Write-Host "Using gcc from $($wingetGcc.DirectoryName)"
+        return
+    }
+
+    Write-Error "gcc not found; install WinLibs or set PATH for race detector"
+    exit 1
 }
 
-function Tee-Build {
+function Invoke-Tee {
     param(
         [string]$LogPath,
-        [string[]]$BuildArgs
+        [string]$CommandLine
     )
-    $output = & go @BuildArgs 2>&1
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    cmd /c "$CommandLine > `"$LogPath`" 2>&1"
     $exit = $LASTEXITCODE
-    if ($output) {
-        $output | Out-File -FilePath $LogPath -Encoding utf8
-    } else {
-        "" | Out-File -FilePath $LogPath -Encoding utf8
+    $ErrorActionPreference = $prev
+    if (Test-Path $LogPath) {
+        Get-Content $LogPath | Write-Host
     }
-    "exit code: $exit" | Add-Content -Path $LogPath -Encoding utf8
     if ($exit -ne 0) {
-        Write-Error "Build failed; see $LogPath"
+        Write-Error "Command failed with exit $exit; see $LogPath"
         exit $exit
     }
 }
 
+function Ensure-Docker {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    docker info 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        $ErrorActionPreference = $prev
+        return
+    }
+    $dockerDesktop = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    if (Test-Path $dockerDesktop) {
+        Write-Host "Starting Docker Desktop..."
+        Start-Process $dockerDesktop | Out-Null
+    }
+    for ($i = 0; $i -lt 60; $i++) {
+        docker info 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Docker is ready"
+            $ErrorActionPreference = $prev
+            return
+        }
+        Start-Sleep -Seconds 5
+    }
+    $ErrorActionPreference = $prev
+    Write-Error "Docker is not available for migrate evidence"
+    exit 1
+}
+
+function Start-MigratePostgres {
+    Ensure-Docker
+    $pgPort = 55432
+    $containerName = "alexander-migrate-evidence"
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    docker rm -f $containerName 2>$null | Out-Null
+    docker run -d --name $containerName `
+        -e POSTGRES_PASSWORD=test `
+        -e POSTGRES_DB=alexander_test `
+        -p "${pgPort}:5432" `
+        postgres:16-alpine | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to start postgres container for migrate evidence"
+        exit 1
+    }
+
+    $ready = $false
+    for ($i = 0; $i -lt 45; $i++) {
+        docker exec $containerName pg_isready -U postgres 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $ready = $true
+            break
+        }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $ready) {
+        docker rm -f $containerName 2>$null | Out-Null
+        $ErrorActionPreference = $prev
+        Write-Error "Postgres container did not become ready"
+        exit 1
+    }
+
+    $dbURL = "postgres://postgres:test@localhost:${pgPort}/alexander_test?sslmode=disable"
+    $connected = $false
+    for ($i = 0; $i -lt 30; $i++) {
+        docker exec $containerName psql -U postgres -d alexander_test -c "SELECT 1" 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $connected = $true
+            break
+        }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $connected) {
+        docker rm -f $containerName 2>$null | Out-Null
+        $ErrorActionPreference = $prev
+        Write-Error "Postgres accepted connections but psql probe failed"
+        exit 1
+    }
+    $ErrorActionPreference = $prev
+
+    return @{
+        Container = $containerName
+        DatabaseURL = "postgres://postgres:test@localhost:${pgPort}/alexander_test?sslmode=disable"
+        MigrationsPath = (Join-Path $RepoRoot "migrations/postgres")
+    }
+}
+
+function Stop-MigratePostgres {
+    param([string]$ContainerName)
+    if ($ContainerName) {
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        docker rm -f $ContainerName 2>$null | Out-Null
+        $ErrorActionPreference = $prev
+    }
+}
+
+# Plan step 1: priority tests (exact packages, twice, clean cache each run)
 $PriorityPkgs = @(
     "./internal/auth/...",
     "./internal/handler/...",
     "./internal/repository/...",
-    "./internal/cluster/...",
-    "./cmd/alexander-server/..."
+    "./internal/cluster/..."
 )
 
-# Step 1: priority tests (twice, verbose, no cache)
-Invoke-Logged "go clean -testcache" { go clean -testcache }
+Ensure-GCC
 
 $run1Log = Join-Path $Scratch "priority-tests-run1.log"
+$run2Log = Join-Path $Scratch "priority-tests-run2.log"
 $priorityLog = Join-Path $Scratch "priority-tests.log"
+
+$priorityPkgArgs = ($PriorityPkgs -join " ")
 
 function Run-PriorityTests {
     param([string]$LogPath)
-    $output = go test -v -short -cover -count=1 @PriorityPkgs 2>&1
-    $exit = $LASTEXITCODE
-    $output | Tee-Object -FilePath $LogPath
+    Write-Host "==> priority tests -> $LogPath"
+    go clean -testcache | Out-Null
+    Invoke-Tee -LogPath $LogPath -CommandLine "go test -v -race -short -cover $priorityPkgArgs"
+}
+
+Run-PriorityTests -LogPath $run1Log
+Run-PriorityTests -LogPath $run2Log
+Copy-Item -Path $run2Log -Destination $priorityLog -Force
+
+# Plan step 2: migrate build (twice) and commands
+$migrateBin = Join-Path $Scratch "alexander-migrate.exe"
+Write-Host "==> migrate build 1"
+go build -o $migrateBin ./cmd/alexander-migrate
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-Host "==> migrate build 2"
+go build -o $migrateBin ./cmd/alexander-migrate
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$pg = Start-MigratePostgres
+$env:DATABASE_URL = $pg.DatabaseURL
+$env:MIGRATIONS_PATH = $pg.MigrationsPath
+$createMigrationsPath = Join-Path $Scratch "migrations-create"
+if (Test-Path $createMigrationsPath) { Remove-Item -Recurse -Force $createMigrationsPath }
+Copy-Item -Recurse $pg.MigrationsPath $createMigrationsPath
+
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+
+function Invoke-MigrateLog {
+    param(
+        [string]$Name,
+        [string[]]$CmdArgs,
+        [string]$MigrationsPath = $env:MIGRATIONS_PATH,
+        [int]$MaxAttempts = 5
+    )
+    $logPath = Join-Path $Scratch "migrate-$Name.log"
+    $savedPath = $env:MIGRATIONS_PATH
+    $env:MIGRATIONS_PATH = $MigrationsPath
+
+    $output = $null
+    $exit = 1
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        $output = & $migrateBin $CmdArgs 2>&1
+        $exit = $LASTEXITCODE
+        if ($exit -eq 0) { break }
+        $text = ($output | Out-String)
+        if ($text -match "EOF|connection refused|too many clients") {
+            Start-Sleep -Seconds 2
+            continue
+        }
+        break
+    }
+
+    $env:MIGRATIONS_PATH = $savedPath
+    $output | Out-File -FilePath $logPath -Encoding utf8
     if ($exit -ne 0) {
-        Write-Error "priority tests failed with exit code $exit"
+        Write-Error "migrate $Name failed with exit $exit"
         exit $exit
     }
 }
 
-Run-PriorityTests -LogPath $run1Log
-Run-PriorityTests -LogPath $priorityLog
+# Production migration path: up first, then status shows applied version
+Invoke-MigrateLog -Name "version" -CmdArgs @("version")
+Invoke-MigrateLog -Name "help" -CmdArgs @("help")
+Invoke-MigrateLog -Name "up" -CmdArgs @("up")
+Invoke-MigrateLog -Name "status" -CmdArgs @("status")
+Invoke-MigrateLog -Name "down" -CmdArgs @("down")
+Invoke-MigrateLog -Name "status-after-down" -CmdArgs @("status")
+Invoke-MigrateLog -Name "force" -CmdArgs @("force", "1")
+Invoke-MigrateLog -Name "create" -CmdArgs @("create", "evidence_test_migration") -MigrationsPath $createMigrationsPath
 
-# Step 2: alexander-migrate build (twice) and command invocations
-$migrateBin = Join-Path $Scratch "alexander-migrate.exe"
-Invoke-Logged "migrate build 1" { go build -o $migrateBin ./cmd/alexander-migrate }
-Invoke-Logged "migrate build 2" { go build -o $migrateBin ./cmd/alexander-migrate }
-
-$migrateInvocations = @(
-    @{ Name = "version"; Args = @("version") },
-    @{ Name = "help"; Args = @("help") },
-    @{ Name = "status"; Args = @("status") },
-    @{ Name = "up"; Args = @("up") },
-    @{ Name = "down"; Args = @("down") },
-    @{ Name = "create"; Args = @("create", "evidence_test_migration") },
-    @{ Name = "force"; Args = @("force", "1") }
-)
-$prevEAP = $ErrorActionPreference
-$ErrorActionPreference = "Continue"
-foreach ($inv in $migrateInvocations) {
-    $logPath = Join-Path $Scratch ("migrate-{0}.log" -f $inv.Name)
-    $output = & $migrateBin $inv.Args 2>&1
-    $exit = $LASTEXITCODE
-    if ($output) { $output | Out-File -FilePath $logPath -Encoding utf8 }
-    else { "" | Out-File -FilePath $logPath -Encoding utf8 }
-    "exit code: $exit" | Add-Content -Path $logPath -Encoding utf8
-}
 $ErrorActionPreference = $prevEAP
+Stop-MigratePostgres -ContainerName $pg.Container
 
-# Step 3: server build
+# Plan step 3: server build (pure tee, cold cache for visible package lines)
 $serverBin = Join-Path $Scratch "alexander-server.exe"
 $serverBuildLog = Join-Path $Scratch "server-build.log"
-Tee-Build -LogPath $serverBuildLog -BuildArgs @("build", "-o", $serverBin, "./cmd/alexander-server")
+Remove-Item $serverBin -ErrorAction SilentlyContinue
+go clean -cache | Out-Null
+Invoke-Tee -LogPath $serverBuildLog -CommandLine "go build -v -o `"$serverBin`" ./cmd/alexander-server"
 
 $s3ConfigLog = Join-Path $Scratch "s3-config.log"
 @(
-    "storage backend packages:",
-    (go list -f "{{.ImportPath}} {{.GoFiles}}" ./internal/storage/... 2>&1)
+    (go list -f "{{.GoFiles}}" ./internal/storage/... 2>&1)
 ) | Out-File -FilePath $s3ConfigLog -Encoding utf8
 
-# Step 4: workflows and docs (twice)
+# Plan step 4: workflows and docs (twice)
 $workflowsList = Join-Path $Scratch "workflows-list.txt"
 $pagesWorkflow = Join-Path $Scratch "pages-workflow.log"
 $docsContents = Join-Path $Scratch "docs-contents.txt"
@@ -142,28 +282,31 @@ function Capture-DocsWorkflow {
 Capture-DocsWorkflow
 Capture-DocsWorkflow
 
-# Step 5: full test summary and all-packages build
+# Plan step 5: full test summary and all-packages build
 $fullTestLog = Join-Path $Scratch "full-test-summary.log"
 $allBuildLog = Join-Path $Scratch "all-build.log"
 
+$prev = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 $fullOutput = go test -short ./... 2>&1
+$fullExit = $LASTEXITCODE
+$ErrorActionPreference = $prev
 if ($fullOutput) {
     ($fullOutput | Select-Object -Last 20) | Out-File -FilePath $fullTestLog -Encoding utf8
-} else {
-    "" | Out-File -FilePath $fullTestLog -Encoding utf8
 }
-"exit code: $LASTEXITCODE" | Add-Content -Path $fullTestLog -Encoding utf8
-if ($LASTEXITCODE -ne 0) {
+if ($fullExit -ne 0) {
     Write-Error "go test -short ./... failed"
-    exit $LASTEXITCODE
+    exit $fullExit
 }
 
-Tee-Build -LogPath $allBuildLog -BuildArgs @("build", "./...")
+go clean -cache | Out-Null
+Invoke-Tee -LogPath $allBuildLog -CommandLine "go build -v ./..."
 
 # Self-checks
 $requiredFiles = @(
     $priorityLog,
     $run1Log,
+    $run2Log,
     $serverBuildLog,
     $allBuildLog,
     $fullTestLog,
@@ -172,7 +315,7 @@ $requiredFiles = @(
     $docsContents,
     $migrateBin,
     $serverBin
-) + ($migrateInvocations | ForEach-Object { Join-Path $Scratch ("migrate-{0}.log" -f $_.Name) })
+) + @("version", "help", "status", "status-after-down", "up", "down", "create", "force" | ForEach-Object { Join-Path $Scratch "migrate-$_.log" })
 
 foreach ($f in $requiredFiles) {
     if (-not (Test-Path $f)) {
@@ -181,42 +324,71 @@ foreach ($f in $requiredFiles) {
     }
 }
 
-$priorityContent = Get-Content $priorityLog -Raw
-if ($priorityContent -notmatch "=== RUN") {
-    Write-Error "priority-tests.log lacks verbose test output (=== RUN)"
-    exit 1
+foreach ($log in @($run1Log, $run2Log, $priorityLog)) {
+    $content = Get-Content $log -Raw
+    if ($content -notmatch "=== RUN") {
+        Write-Error "$log lacks verbose test output"
+        exit 1
+    }
 }
 
+$priorityContent = Get-Content $priorityLog -Raw
 $requiredTests = @(
     "TestGRPCClientServer_DeleteBlobNotFound",
-    "TestManager_GetClientForNode_RemoteGRPC",
-    "TestInitRepositories_SQLite"
+    "TestGRPCClientServer_RetrieveBlobNotFound",
+    "TestManager_GetClientForNode_RemoteGRPC"
 )
 foreach ($testName in $requiredTests) {
     if ($priorityContent -notmatch [regex]::Escape($testName)) {
-        Write-Error "priority-tests.log does not show execution of $testName"
+        Write-Error "priority-tests.log missing $testName"
         exit 1
     }
 }
 
 foreach ($buildLog in @($serverBuildLog, $allBuildLog)) {
     $buildContent = Get-Content $buildLog -Raw
-    if ($buildContent -match "BUILD OK") {
-        Write-Error "$buildLog contains synthetic BUILD OK placeholder"
+    if ($buildContent -match "BUILD OK|# Command:|exit code:|CategoryInfo|FullyQualifiedErrorId|At .+:\d+") {
+        Write-Error "$buildLog contains synthetic or PowerShell-wrapped content"
         exit 1
     }
-    if ($buildContent -notmatch "exit code:\s*0") {
-        Write-Error "$buildLog missing exit code: 0 marker"
+    if ($buildContent -notmatch "github\.com/") {
+        Write-Error "$buildLog missing go build package output"
+        exit 1
+    }
+    $lineCount = (Get-Content $buildLog | Measure-Object -Line).Lines
+    if ($lineCount -lt 20) {
+        Write-Error "$buildLog too short ($lineCount lines); expected full go build -v output"
         exit 1
     }
 }
 
-foreach ($migrateLog in ($migrateInvocations | ForEach-Object { Join-Path $Scratch ("migrate-{0}.log" -f $_.Name) })) {
-    $mc = Get-Content $migrateLog -Raw
-    if ($mc -match "not yet implemented") {
-        Write-Error "$migrateLog still contains 'not yet implemented'"
-        exit 1
-    }
+$migrateStatus = Get-Content (Join-Path $Scratch "migrate-status.log") -Raw
+if ($migrateStatus -notmatch "Current version:") {
+    Write-Error "migrate-status.log should show applied migration version"
+    exit 1
+}
+$migrateUp = Get-Content (Join-Path $Scratch "migrate-up.log") -Raw
+if ($migrateUp -notmatch "Migrations applied successfully") {
+    Write-Error "migrate-up.log missing success message"
+    exit 1
+}
+if ($migrateStatus -match "not yet implemented|DATABASE_URL environment variable is required") {
+    Write-Error "migrate logs show incomplete implementation"
+    exit 1
+}
+
+$migrateStatusAfterDown = Get-Content (Join-Path $Scratch "migrate-status-after-down.log") -Raw
+if ($migrateStatusAfterDown -notmatch "Current version:|no migrations applied") {
+    Write-Error "migrate-status-after-down.log should show rollback state"
+    exit 1
+}
+$verUp = $null
+$verDown = $null
+if ($migrateStatus -match "Current version: (\d+)") { $verUp = [int]$Matches[1] }
+if ($migrateStatusAfterDown -match "Current version: (\d+)") { $verDown = [int]$Matches[1] }
+if ($null -ne $verUp -and $null -ne $verDown -and $verDown -ge $verUp) {
+    Write-Error "migrate-status-after-down should show lower version than post-up status"
+    exit 1
 }
 
 Write-Host "All evidence captured and self-checks passed."

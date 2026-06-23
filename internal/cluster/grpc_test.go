@@ -113,6 +113,22 @@ func TestGRPCClientServer_DeleteBlobNotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrBlobNotFound)
 }
 
+func TestGRPCClientServer_RetrieveBlobNotFound(t *testing.T) {
+	addr, cleanup := startTestGRPCServer(t)
+	defer cleanup()
+
+	client, err := NewClient(ClientConfig{Address: addr}, zerolog.Nop())
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+	_, err = client.RetrieveBlob(ctx, sha256Hex("missing"))
+	require.ErrorIs(t, err, ErrBlobNotFound)
+
+	_, err = client.RetrieveBlobRange(ctx, sha256Hex("missing"), 0, 5)
+	require.ErrorIs(t, err, ErrBlobNotFound)
+}
+
 func TestGRPCClientServer_RetrieveRange(t *testing.T) {
 	addr, cleanup := startTestGRPCServer(t)
 	defer cleanup()

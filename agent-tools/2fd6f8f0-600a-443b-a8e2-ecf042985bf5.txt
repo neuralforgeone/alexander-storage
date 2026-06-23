@@ -1,0 +1,1319 @@
+Using gcc from C:\Users\tunay\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin
+==> priority tests -> C:\Users\tunay\AppData\Local\Temp\grok-goal-e1e2fd585769\implementer\priority-tests-run1.log
+=== RUN   TestGetPayloadHash
+=== PAUSE TestGetPayloadHash
+=== RUN   TestGetRequestTime
+=== PAUSE TestGetRequestTime
+=== RUN   TestGetAuthType
+=== PAUSE TestGetAuthType
+=== RUN   TestParseSignV4
+=== PAUSE TestParseSignV4
+=== RUN   TestParseSignV4_Invalid
+=== PAUSE TestParseSignV4_Invalid
+=== RUN   TestParsePresignedV4
+=== PAUSE TestParsePresignedV4
+=== RUN   TestValidateRequestTime
+=== PAUSE TestValidateRequestTime
+=== RUN   TestGetSigningKeyDeterministic
+=== PAUSE TestGetSigningKeyDeterministic
+=== RUN   TestGetCanonicalRequest
+=== PAUSE TestGetCanonicalRequest
+=== RUN   TestVerifySignatureRoundTrip
+=== PAUSE TestVerifySignatureRoundTrip
+=== CONT  TestParseSignV4
+=== CONT  TestParseSignV4_Invalid
+=== CONT  TestGetSigningKeyDeterministic
+--- PASS: TestParseSignV4_Invalid (0.00s)
+=== CONT  TestParsePresignedV4
+=== CONT  TestGetCanonicalRequest
+=== CONT  TestGetAuthType
+=== CONT  TestVerifySignatureRoundTrip
+=== CONT  TestValidateRequestTime
+--- PASS: TestParseSignV4 (0.00s)
+--- PASS: TestGetAuthType (0.00s)
+--- PASS: TestGetCanonicalRequest (0.00s)
+=== CONT  TestGetRequestTime
+=== CONT  TestGetPayloadHash
+--- PASS: TestGetSigningKeyDeterministic (0.00s)
+--- PASS: TestValidateRequestTime (0.00s)
+--- PASS: TestParsePresignedV4 (0.00s)
+--- PASS: TestGetRequestTime (0.00s)
+--- PASS: TestGetPayloadHash (0.00s)
+--- PASS: TestVerifySignatureRoundTrip (0.00s)
+PASS
+coverage: 38.7% of statements
+ok  github.com/prn-tf/alexander-storage/internal/auth1.928scoverage: 38.7% of statements
+=== RUN   TestHealthChecker_HandleLiveness
+=== PAUSE TestHealthChecker_HandleLiveness
+=== RUN   TestHealthChecker_HandleHealth_AllHealthy
+=== PAUSE TestHealthChecker_HandleHealth_AllHealthy
+=== RUN   TestSimpleHealth
+=== PAUSE TestSimpleHealth
+=== CONT  TestHealthChecker_HandleLiveness
+=== CONT  TestHealthChecker_HandleHealth_AllHealthy
+=== CONT  TestSimpleHealth
+--- PASS: TestHealthChecker_HandleLiveness (0.00s)
+--- PASS: TestSimpleHealth (0.00s)
+--- PASS: TestHealthChecker_HandleHealth_AllHealthy (0.00s)
+PASS
+coverage: 5.6% of statements
+ok  github.com/prn-tf/alexander-storage/internal/handler2.554scoverage: 5.6% of statements
+github.com/prn-tf/alexander-storage/internal/repositorycoverage: 0.0% of statements
+=== RUN   TestCreateSQLite_InMemory
+=== PAUSE TestCreateSQLite_InMemory
+=== CONT  TestCreateSQLite_InMemory
+--- PASS: TestCreateSQLite_InMemory (0.15s)
+PASS
+coverage: 45.2% of statements
+ok  github.com/prn-tf/alexander-storage/internal/repository/bootstrap2.935scoverage: 45.2% of statements
+=== RUN   TestDatabaseConfigDSN
+=== PAUSE TestDatabaseConfigDSN
+=== CONT  TestDatabaseConfigDSN
+--- PASS: TestDatabaseConfigDSN (0.00s)
+PASS
+coverage: 0.0% of statements
+ok  github.com/prn-tf/alexander-storage/internal/repository/postgres1.434scoverage: 0.0% of statements
+=== RUN   TestBlobRepository_UpsertAndGet
+=== PAUSE TestBlobRepository_UpsertAndGet
+=== RUN   TestBucketRepository_CreateAndGet
+=== PAUSE TestBucketRepository_CreateAndGet
+=== RUN   TestBucketRepository_ListByOwner
+=== PAUSE TestBucketRepository_ListByOwner
+=== RUN   TestBucketRepository_Delete
+=== PAUSE TestBucketRepository_Delete
+=== CONT  TestBlobRepository_UpsertAndGet
+=== CONT  TestBucketRepository_ListByOwner
+=== CONT  TestBucketRepository_CreateAndGet
+=== CONT  TestBucketRepository_Delete
+--- PASS: TestBucketRepository_Delete (0.19s)
+--- PASS: TestBucketRepository_ListByOwner (0.19s)
+--- PASS: TestBlobRepository_UpsertAndGet (0.19s)
+--- PASS: TestBucketRepository_CreateAndGet (0.19s)
+PASS
+coverage: 9.4% of statements
+ok  github.com/prn-tf/alexander-storage/internal/repository/sqlite2.992scoverage: 9.4% of statements
+=== RUN   TestMockClient_Ping
+--- PASS: TestMockClient_Ping (0.00s)
+=== RUN   TestMockClient_TransferAndRetrieve
+--- PASS: TestMockClient_TransferAndRetrieve (0.00s)
+=== RUN   TestMockClient_BlobNotFound
+--- PASS: TestMockClient_BlobNotFound (0.00s)
+=== RUN   TestMockClient_DeleteBlob
+--- PASS: TestMockClient_DeleteBlob (0.00s)
+=== RUN   TestMockClient_RetrieveBlobRange
+--- PASS: TestMockClient_RetrieveBlobRange (0.00s)
+=== RUN   TestClientPool
+--- PASS: TestClientPool (0.00s)
+=== RUN   TestServerConfig_Default
+--- PASS: TestServerConfig_Default (0.00s)
+=== RUN   TestNodeRole_String
+--- PASS: TestNodeRole_String (0.00s)
+=== RUN   TestNodeStatus_String
+--- PASS: TestNodeStatus_String (0.00s)
+=== RUN   TestBlobLocation
+--- PASS: TestBlobLocation (0.00s)
+=== RUN   TestStorageStats
+--- PASS: TestStorageStats (0.00s)
+=== RUN   TestNode
+--- PASS: TestNode (0.00s)
+=== RUN   TestReplicationStatus
+--- PASS: TestReplicationStatus (0.00s)
+=== RUN   TestGRPCClientServer_Ping
+--- PASS: TestGRPCClientServer_Ping (0.01s)
+=== RUN   TestGRPCClientServer_TransferRetrieveDelete
+--- PASS: TestGRPCClientServer_TransferRetrieveDelete (0.02s)
+=== RUN   TestGRPCClientServer_DeleteBlobNotFound
+--- PASS: TestGRPCClientServer_DeleteBlobNotFound (0.01s)
+=== RUN   TestGRPCClientServer_RetrieveBlobNotFound
+--- PASS: TestGRPCClientServer_RetrieveBlobNotFound (0.01s)
+=== RUN   TestGRPCClientServer_RetrieveRange
+--- PASS: TestGRPCClientServer_RetrieveRange (0.02s)
+=== RUN   TestGRPCService_RegisterAndHeartbeat
+--- PASS: TestGRPCService_RegisterAndHeartbeat (0.00s)
+=== RUN   TestManager_RegisterSelfAndHeartbeat
+--- PASS: TestManager_RegisterSelfAndHeartbeat (0.00s)
+=== RUN   TestManager_BlobLocations
+--- PASS: TestManager_BlobLocations (0.00s)
+=== RUN   TestManager_GetClientForNode_RemoteGRPC
+--- PASS: TestManager_GetClientForNode_RemoteGRPC (0.02s)
+PASS
+coverage: 68.6% of statements
+ok  github.com/prn-tf/alexander-storage/internal/cluster2.063scoverage: 68.6% of statements
+github.com/prn-tf/alexander-storage/internal/cluster/protocoverage: 0.0% of statements
+==> priority tests -> C:\Users\tunay\AppData\Local\Temp\grok-goal-e1e2fd585769\implementer\priority-tests-run2.log
+=== RUN   TestGetPayloadHash
+=== PAUSE TestGetPayloadHash
+=== RUN   TestGetRequestTime
+=== PAUSE TestGetRequestTime
+=== RUN   TestGetAuthType
+=== PAUSE TestGetAuthType
+=== RUN   TestParseSignV4
+=== PAUSE TestParseSignV4
+=== RUN   TestParseSignV4_Invalid
+=== PAUSE TestParseSignV4_Invalid
+=== RUN   TestParsePresignedV4
+=== PAUSE TestParsePresignedV4
+=== RUN   TestValidateRequestTime
+=== PAUSE TestValidateRequestTime
+=== RUN   TestGetSigningKeyDeterministic
+=== PAUSE TestGetSigningKeyDeterministic
+=== RUN   TestGetCanonicalRequest
+=== PAUSE TestGetCanonicalRequest
+=== RUN   TestVerifySignatureRoundTrip
+=== PAUSE TestVerifySignatureRoundTrip
+=== CONT  TestGetPayloadHash
+=== CONT  TestParseSignV4_Invalid
+=== CONT  TestGetAuthType
+--- PASS: TestGetPayloadHash (0.00s)
+--- PASS: TestGetAuthType (0.00s)
+=== CONT  TestValidateRequestTime
+=== CONT  TestGetRequestTime
+=== CONT  TestParseSignV4
+=== CONT  TestGetCanonicalRequest
+=== CONT  TestVerifySignatureRoundTrip
+=== CONT  TestGetSigningKeyDeterministic
+=== CONT  TestParsePresignedV4
+--- PASS: TestParseSignV4_Invalid (0.00s)
+--- PASS: TestValidateRequestTime (0.00s)
+--- PASS: TestGetRequestTime (0.00s)
+--- PASS: TestGetCanonicalRequest (0.00s)
+--- PASS: TestParseSignV4 (0.00s)
+--- PASS: TestGetSigningKeyDeterministic (0.00s)
+--- PASS: TestParsePresignedV4 (0.00s)
+--- PASS: TestVerifySignatureRoundTrip (0.00s)
+PASS
+coverage: 38.7% of statements
+ok  github.com/prn-tf/alexander-storage/internal/auth1.895scoverage: 38.7% of statements
+=== RUN   TestHealthChecker_HandleLiveness
+=== PAUSE TestHealthChecker_HandleLiveness
+=== RUN   TestHealthChecker_HandleHealth_AllHealthy
+=== PAUSE TestHealthChecker_HandleHealth_AllHealthy
+=== RUN   TestSimpleHealth
+=== PAUSE TestSimpleHealth
+=== CONT  TestHealthChecker_HandleLiveness
+=== CONT  TestHealthChecker_HandleHealth_AllHealthy
+=== CONT  TestSimpleHealth
+--- PASS: TestSimpleHealth (0.00s)
+--- PASS: TestHealthChecker_HandleLiveness (0.00s)
+--- PASS: TestHealthChecker_HandleHealth_AllHealthy (0.00s)
+PASS
+coverage: 5.6% of statements
+ok  github.com/prn-tf/alexander-storage/internal/handler2.331scoverage: 5.6% of statements
+github.com/prn-tf/alexander-storage/internal/repositorycoverage: 0.0% of statements
+=== RUN   TestCreateSQLite_InMemory
+=== PAUSE TestCreateSQLite_InMemory
+=== CONT  TestCreateSQLite_InMemory
+--- PASS: TestCreateSQLite_InMemory (0.19s)
+PASS
+coverage: 45.2% of statements
+ok  github.com/prn-tf/alexander-storage/internal/repository/bootstrap3.110scoverage: 45.2% of statements
+=== RUN   TestDatabaseConfigDSN
+=== PAUSE TestDatabaseConfigDSN
+=== CONT  TestDatabaseConfigDSN
+--- PASS: TestDatabaseConfigDSN (0.00s)
+PASS
+coverage: 0.0% of statements
+ok  github.com/prn-tf/alexander-storage/internal/repository/postgres1.538scoverage: 0.0% of statements
+=== RUN   TestBlobRepository_UpsertAndGet
+=== PAUSE TestBlobRepository_UpsertAndGet
+=== RUN   TestBucketRepository_CreateAndGet
+=== PAUSE TestBucketRepository_CreateAndGet
+=== RUN   TestBucketRepository_ListByOwner
+=== PAUSE TestBucketRepository_ListByOwner
+=== RUN   TestBucketRepository_Delete
+=== PAUSE TestBucketRepository_Delete
+=== CONT  TestBlobRepository_UpsertAndGet
+=== CONT  TestBucketRepository_ListByOwner
+=== CONT  TestBucketRepository_CreateAndGet
+=== CONT  TestBucketRepository_Delete
+--- PASS: TestBucketRepository_Delete (0.24s)
+--- PASS: TestBucketRepository_CreateAndGet (0.24s)
+--- PASS: TestBlobRepository_UpsertAndGet (0.24s)
+--- PASS: TestBucketRepository_ListByOwner (0.24s)
+PASS
+coverage: 9.4% of statements
+ok  github.com/prn-tf/alexander-storage/internal/repository/sqlite3.065scoverage: 9.4% of statements
+=== RUN   TestMockClient_Ping
+--- PASS: TestMockClient_Ping (0.00s)
+=== RUN   TestMockClient_TransferAndRetrieve
+--- PASS: TestMockClient_TransferAndRetrieve (0.00s)
+=== RUN   TestMockClient_BlobNotFound
+--- PASS: TestMockClient_BlobNotFound (0.00s)
+=== RUN   TestMockClient_DeleteBlob
+--- PASS: TestMockClient_DeleteBlob (0.00s)
+=== RUN   TestMockClient_RetrieveBlobRange
+--- PASS: TestMockClient_RetrieveBlobRange (0.00s)
+=== RUN   TestClientPool
+--- PASS: TestClientPool (0.00s)
+=== RUN   TestServerConfig_Default
+--- PASS: TestServerConfig_Default (0.00s)
+=== RUN   TestNodeRole_String
+--- PASS: TestNodeRole_String (0.00s)
+=== RUN   TestNodeStatus_String
+--- PASS: TestNodeStatus_String (0.00s)
+=== RUN   TestBlobLocation
+--- PASS: TestBlobLocation (0.00s)
+=== RUN   TestStorageStats
+--- PASS: TestStorageStats (0.00s)
+=== RUN   TestNode
+--- PASS: TestNode (0.00s)
+=== RUN   TestReplicationStatus
+--- PASS: TestReplicationStatus (0.00s)
+=== RUN   TestGRPCClientServer_Ping
+--- PASS: TestGRPCClientServer_Ping (0.01s)
+=== RUN   TestGRPCClientServer_TransferRetrieveDelete
+--- PASS: TestGRPCClientServer_TransferRetrieveDelete (0.02s)
+=== RUN   TestGRPCClientServer_DeleteBlobNotFound
+--- PASS: TestGRPCClientServer_DeleteBlobNotFound (0.01s)
+=== RUN   TestGRPCClientServer_RetrieveBlobNotFound
+--- PASS: TestGRPCClientServer_RetrieveBlobNotFound (0.01s)
+=== RUN   TestGRPCClientServer_RetrieveRange
+--- PASS: TestGRPCClientServer_RetrieveRange (0.01s)
+=== RUN   TestGRPCService_RegisterAndHeartbeat
+--- PASS: TestGRPCService_RegisterAndHeartbeat (0.00s)
+=== RUN   TestManager_RegisterSelfAndHeartbeat
+--- PASS: TestManager_RegisterSelfAndHeartbeat (0.00s)
+=== RUN   TestManager_BlobLocations
+--- PASS: TestManager_BlobLocations (0.00s)
+=== RUN   TestManager_GetClientForNode_RemoteGRPC
+--- PASS: TestManager_GetClientForNode_RemoteGRPC (0.02s)
+PASS
+coverage: 68.6% of statements
+ok  github.com/prn-tf/alexander-storage/internal/cluster2.948scoverage: 68.6% of statements
+github.com/prn-tf/alexander-storage/internal/cluster/protocoverage: 0.0% of statements
+==> migrate build 1
+==> migrate build 2
+Starting Docker Desktop...
+Docker is ready
+internal/godebugs
+internal/byteorder
+internal/coverage/rtcov
+unicode/utf16
+internal/goos
+internal/profilerecord
+internal/msan
+internal/goarch
+internal/asan
+internal/syscall/windows/sysdll
+internal/itoa
+internal/unsafeheader
+internal/trace/tracev2
+internal/goexperiment
+internal/cpu
+sync/atomic
+unicode/utf8
+math/bits
+cmp
+unicode
+structs
+crypto/internal/fips140/alias
+crypto/internal/fips140deps/byteorder
+crypto/internal/boring/sig
+encoding
+internal/nettrace
+container/list
+internal/abi
+internal/runtime/atomic
+internal/runtime/gc
+internal/runtime/math
+vendor/golang.org/x/crypto/cryptobyte/asn1
+vendor/golang.org/x/crypto/internal/alias
+log/internal
+internal/runtime/sys
+crypto/internal/fips140/subtle
+golang.org/x/text/internal/utf8internal
+golang.org/x/text/encoding/internal/identifier
+github.com/pelletier/go-toml/v2/internal/characters
+github.com/spf13/viper/internal/features
+log/slog/internal
+internal/bytealg
+internal/chacha8rand
+internal/runtime/strconv
+math
+crypto/internal/fips140deps/cpu
+google.golang.org/protobuf/internal/flags
+google.golang.org/protobuf/internal/set
+golang.org/x/crypto/internal/alias
+github.com/jackc/puddle/v2/internal/genstack
+golang.org/x/exp/constraints
+internal/runtime/exithook
+github.com/aws/aws-sdk-go-v2/internal/sdkio
+github.com/aws/smithy-go/container/private/cache
+internal/race
+internal/synctest
+github.com/aws/smithy-go/container/private/cache/lru
+internal/sync
+internal/runtime/maps
+internal/stringslite
+runtime
+iter
+runtime/metrics
+crypto/subtle
+internal/reflectlite
+weak
+sync
+maps
+slices
+internal/bisect
+internal/singleflight
+github.com/aws/smithy-go/sync
+crypto/internal/fips140cache
+google.golang.org/protobuf/internal/pragma
+log/slog/internal/buffer
+internal/testlog
+github.com/jackc/pgx/v5/internal/iobufpool
+unique
+errors
+sort
+internal/godebug
+vendor/golang.org/x/net/dns/dnsmessage
+internal/oserror
+path
+io
+math/rand/v2
+github.com/go-viper/mapstructure/v2/internal/errors
+strconv
+syscall
+github.com/beorn7/perks/quantile
+golang.org/x/text/internal/tag
+hash
+bytes
+internal/saferio
+github.com/prometheus/client_golang/prometheus/promhttp/internal
+strings
+github.com/jackc/pgx/v5/pgconn/internal/bgreader
+github.com/aws/smithy-go/transport/http/internal/io
+crypto/internal/fips140deps/godebug
+math/rand
+hash/crc32
+hash/fnv
+crypto/internal/randutil
+reflect
+crypto
+encoding/base64
+net/netip
+golang.org/x/crypto/blowfish
+vendor/golang.org/x/text/transform
+golang.org/x/text/transform
+github.com/aws/smithy-go/io
+crypto/internal/impl
+bufio
+net/http/internal/ascii
+crypto/internal/fips140
+regexp/syntax
+html
+github.com/munnerz/goautoneg
+encoding/pem
+github.com/aws/aws-sdk-go-v2/internal/strings
+github.com/aws/aws-sdk-go-v2/aws/arn
+crypto/internal/fips140/sha256
+crypto/internal/fips140/sha3
+crypto/internal/fips140/sha512
+golang.org/x/text/runes
+golang.org/x/text/encoding
+golang.org/x/text/width
+internal/syscall/windows/registry
+internal/syscall/windows
+github.com/mattn/go-isatty
+regexp
+golang.org/x/text/encoding/internal
+crypto/internal/fips140/hmac
+crypto/sha3
+golang.org/x/text/encoding/unicode
+time
+crypto/internal/fips140/check
+crypto/internal/fips140hash
+internal/syscall/execenv
+crypto/internal/fips140/aes
+crypto/internal/fips140/edwards25519/field
+crypto/internal/fips140/nistec/fiat
+crypto/internal/fips140/bigmod
+crypto/internal/fips140/hkdf
+crypto/fips140
+crypto/internal/fips140/tls12
+crypto/tls/internal/fips140tls
+crypto/internal/fips140/tls13
+crypto/internal/fips140/edwards25519
+internal/fmtsort
+modernc.org/libc/pthread
+modernc.org/libc/errno
+encoding/binary
+modernc.org/libc/signal
+modernc.org/libc/limits
+modernc.org/libc/fcntl
+modernc.org/libc/stdio
+modernc.org/libc/sys/types
+modernc.org/libc/time
+modernc.org/libc/unistd
+modernc.org/libc/sys/stat
+context
+io/fs
+internal/poll
+github.com/ncruces/go-strftime
+github.com/aws/smithy-go/ptr
+github.com/aws/aws-sdk-go-v2/internal/timeconv
+crypto/internal/fips140/nistec
+github.com/jackc/pgx/v5/internal/pgio
+golang.org/x/crypto/internal/poly1305
+github.com/cespare/xxhash/v2
+vendor/golang.org/x/crypto/internal/poly1305
+github.com/jackc/pgx/v5/pgconn/ctxwatch
+github.com/aws/aws-sdk-go-v2/internal/sdk
+github.com/aws/smithy-go/context
+github.com/aws/aws-sdk-go-v2/service/internal/s3shared/config
+golang.org/x/sync/semaphore
+internal/filepathlite
+github.com/spf13/afero/internal/common
+embed
+github.com/jackc/puddle/v2
+google.golang.org/protobuf/internal/editiondefaults
+os
+crypto/internal/sysrand
+github.com/jackc/pgpassfile
+github.com/mattn/go-colorable
+io/ioutil
+google.golang.org/protobuf/internal/detrand
+os/signal
+fmt
+path/filepath
+vendor/golang.org/x/sys/cpu
+golang.org/x/sys/cpu
+net
+crypto/internal/entropy
+crypto/internal/fips140/drbg
+github.com/spf13/afero/mem
+github.com/prn-tf/alexander-storage/internal/storage
+os/exec
+crypto/internal/fips140only
+crypto/internal/fips140/ecdh
+crypto/internal/fips140/aes/gcm
+crypto/internal/fips140/ecdsa
+crypto/internal/fips140/mlkem
+crypto/internal/fips140/ed25519
+crypto/internal/fips140/rsa
+crypto/hkdf
+crypto/md5
+crypto/rc4
+encoding/hex
+encoding/json
+compress/flate
+net/url
+math/big
+log
+vendor/golang.org/x/text/unicode/norm
+vendor/golang.org/x/net/http2/hpack
+mime
+mime/quotedprintable
+net/http/internal
+database/sql/driver
+encoding/csv
+runtime/debug
+golang.org/x/text/unicode/norm
+crypto/cipher
+compress/gzip
+vendor/golang.org/x/text/unicode/bidi
+github.com/spf13/cast/internal
+text/template/parse
+flag
+github.com/subosito/gotenv
+github.com/pelletier/go-toml/v2/internal/danger
+go.yaml.in/yaml/v3
+encoding/xml
+github.com/rs/zerolog/internal/json
+net/textproto
+crypto/internal/boring
+golang.org/x/sys/windows
+crypto/des
+vendor/golang.org/x/crypto/chacha20
+github.com/sourcegraph/conc/panics
+github.com/go-viper/mapstructure/v2
+github.com/spf13/viper/internal/encoding/json
+vendor/golang.org/x/text/secure/bidirule
+github.com/pelletier/go-toml/v2/unstable
+github.com/spf13/pflag
+text/template
+crypto/hmac
+crypto/sha256
+crypto/aes
+github.com/rs/zerolog
+crypto/rand
+crypto/ecdh
+crypto/elliptic
+crypto/internal/boring/bbig
+crypto/sha512
+encoding/asn1
+vendor/golang.org/x/crypto/chacha20poly1305
+crypto/sha1
+crypto/dsa
+vendor/golang.org/x/net/idna
+github.com/sourcegraph/conc
+crypto/ed25519
+mime/multipart
+github.com/pelletier/go-toml/v2/internal/tracker
+crypto/rsa
+html/template
+log/slog
+github.com/sourcegraph/conc/pool
+google.golang.org/protobuf/internal/errors
+vendor/golang.org/x/crypto/cryptobyte
+crypto/x509/pkix
+github.com/google/uuid
+github.com/pelletier/go-toml/v2
+github.com/spf13/viper/internal/encoding/yaml
+crypto/internal/hpke
+go/token
+github.com/rs/zerolog/log
+vendor/golang.org/x/net/http/httpguts
+vendor/golang.org/x/net/http/httpproxy
+google.golang.org/protobuf/encoding/protowire
+google.golang.org/protobuf/internal/version
+go.yaml.in/yaml/v2
+golang.org/x/crypto/chacha20
+crypto/ecdsa
+github.com/spf13/cast
+github.com/prn-tf/alexander-storage/internal/domain
+golang.org/x/crypto/hkdf
+golang.org/x/crypto/bcrypt
+net/mail
+database/sql
+github.com/jackc/pgx/v5/internal/sanitize
+golang.org/x/crypto/chacha20poly1305
+google.golang.org/protobuf/reflect/protoreflect
+github.com/jackc/pgservicefile
+github.com/jackc/pgx/v5/pgproto3
+golang.org/x/crypto/pbkdf2
+github.com/spf13/viper/internal/encoding/toml
+golang.org/x/text/internal/language
+golang.org/x/text/unicode/bidi
+os/user
+github.com/fsnotify/fsnotify/internal
+github.com/dustin/go-humanize
+github.com/remyoudompheng/bigfft
+modernc.org/memory
+github.com/aws/aws-sdk-go-v2/internal/rand
+github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
+github.com/prn-tf/alexander-storage/internal/pkg/crypto
+github.com/aws/smithy-go/internal/sync/singleflight
+github.com/aws/smithy-go/logging
+github.com/spf13/viper/internal/encoding/dotenv
+github.com/fsnotify/fsnotify
+github.com/aws/smithy-go
+modernc.org/mathutil
+github.com/aws/smithy-go/time
+google.golang.org/protobuf/internal/descfmt
+google.golang.org/protobuf/internal/descopts
+google.golang.org/protobuf/internal/strs
+google.golang.org/protobuf/internal/encoding/messageset
+crypto/x509
+google.golang.org/protobuf/internal/genid
+google.golang.org/protobuf/internal/order
+golang.org/x/text/internal/language/compact
+golang.org/x/text/secure/bidirule
+google.golang.org/protobuf/runtime/protoiface
+github.com/prn-tf/alexander-storage/internal/storage/filesystem
+github.com/jackc/pgx/v5/pgtype
+github.com/aws/smithy-go/middleware
+github.com/aws/smithy-go/rand
+google.golang.org/protobuf/internal/protolazy
+github.com/aws/smithy-go/auth
+github.com/aws/smithy-go/metrics
+github.com/aws/smithy-go/tracing
+google.golang.org/protobuf/reflect/protoregistry
+google.golang.org/protobuf/internal/encoding/text
+github.com/aws/aws-sdk-go-v2/aws/ratelimit
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
+golang.org/x/text/language
+github.com/aws/aws-sdk-go-v2/internal/shareddefaults
+github.com/aws/aws-sdk-go-v2/aws/protocol/restjson
+github.com/aws/smithy-go/document
+github.com/aws/smithy-go/encoding
+github.com/aws/aws-sdk-go-v2/aws/protocol/xml
+modernc.org/libc
+github.com/aws/aws-sdk-go-v2/internal/ini
+github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream
+github.com/aws/aws-sdk-go-v2/internal/context
+google.golang.org/protobuf/proto
+github.com/aws/aws-sdk-go-v2/internal/v4a/internal/crypto
+github.com/aws/aws-sdk-go-v2/service/internal/s3shared/arn
+github.com/aws/smithy-go/waiter
+google.golang.org/protobuf/internal/encoding/defval
+github.com/aws/aws-sdk-go-v2/service/signin/types
+github.com/aws/aws-sdk-go-v2/service/sso/types
+github.com/aws/smithy-go/encoding/json
+github.com/aws/aws-sdk-go-v2/service/ssooidc/types
+golang.org/x/text/internal
+github.com/aws/aws-sdk-go-v2/internal/middleware
+crypto/tls
+github.com/aws/aws-sdk-go-v2/service/sts/types
+github.com/aws/smithy-go/encoding/xml
+github.com/aws/aws-sdk-go-v2/service/s3/internal/arn
+github.com/aws/aws-sdk-go-v2/service/s3/types
+golang.org/x/text/cases
+google.golang.org/protobuf/internal/filedesc
+google.golang.org/protobuf/encoding/prototext
+google.golang.org/protobuf/encoding/protodelim
+golang.org/x/text/secure/precis
+google.golang.org/protobuf/internal/encoding/tag
+google.golang.org/protobuf/internal/impl
+modernc.org/sqlite/lib
+net/http/httptrace
+github.com/jackc/pgx/v5/pgconn
+net/http/internal/httpcommon
+net/http
+github.com/jackc/pgx/v5/internal/stmtcache
+google.golang.org/protobuf/internal/filetype
+google.golang.org/protobuf/runtime/protoimpl
+google.golang.org/protobuf/types/known/timestamppb
+github.com/prometheus/client_model/go
+github.com/prometheus/common/model
+github.com/prometheus/client_golang/prometheus/internal
+github.com/jackc/pgx/v5
+github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil/header
+github.com/go-chi/chi/v5
+github.com/prometheus/common/expfmt
+github.com/aws/smithy-go/endpoints
+github.com/aws/smithy-go/encoding/httpbinding
+net/http/httputil
+github.com/prn-tf/alexander-storage/internal/auth
+expvar
+github.com/aws/aws-sdk-go-v2/internal/v4a/internal/v4
+github.com/spf13/afero
+github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil
+github.com/jackc/pgx/v5/pgxpool
+github.com/aws/smithy-go/transport/http
+github.com/prometheus/client_golang/prometheus
+github.com/sagikazarmark/locafero
+github.com/aws/smithy-go/endpoints/private/rulesfn
+github.com/aws/aws-sdk-go-v2/internal/auth
+github.com/aws/smithy-go/private/requestcompression
+github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/eventstreamapi
+github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding
+github.com/aws/aws-sdk-go-v2/aws/protocol/query
+github.com/aws/smithy-go/auth/bearer
+github.com/aws/aws-sdk-go-v2/internal/endpoints/awsrulesfn
+github.com/spf13/viper
+github.com/aws/aws-sdk-go-v2/aws
+github.com/aws/aws-sdk-go-v2/aws/defaults
+github.com/aws/aws-sdk-go-v2/aws/signer/internal/v4
+github.com/aws/aws-sdk-go-v2/internal/configsources
+github.com/aws/aws-sdk-go-v2/credentials
+github.com/aws/aws-sdk-go-v2/internal/endpoints
+github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
+github.com/aws/aws-sdk-go-v2/credentials/processcreds
+github.com/aws/aws-sdk-go-v2/aws/middleware
+github.com/prn-tf/alexander-storage/internal/config
+github.com/aws/aws-sdk-go-v2/service/signin/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/sso/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/sts/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/ssooidc/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/s3/internal/endpoints
+github.com/prometheus/client_golang/prometheus/promauto
+github.com/prometheus/client_golang/prometheus/promhttp
+github.com/prn-tf/alexander-storage/internal/repository
+github.com/aws/aws-sdk-go-v2/aws/transport/http
+github.com/aws/aws-sdk-go-v2/aws/signer/v4
+github.com/aws/aws-sdk-go-v2/aws/retry
+github.com/prn-tf/alexander-storage/internal/lock
+github.com/prn-tf/alexander-storage/internal/cache/memory
+github.com/prn-tf/alexander-storage/internal/repository/postgres
+github.com/aws/aws-sdk-go-v2/service/internal/s3shared
+github.com/aws/aws-sdk-go-v2/internal/auth/smithy
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
+github.com/aws/aws-sdk-go-v2/internal/v4a
+github.com/aws/aws-sdk-go-v2/credentials/endpointcreds/internal/client
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds
+github.com/aws/aws-sdk-go-v2/service/internal/checksum
+github.com/aws/aws-sdk-go-v2/service/sso
+github.com/aws/aws-sdk-go-v2/service/signin
+github.com/aws/aws-sdk-go-v2/service/ssooidc
+github.com/prn-tf/alexander-storage/internal/metrics
+github.com/aws/aws-sdk-go-v2/service/sts
+github.com/aws/aws-sdk-go-v2/credentials/endpointcreds
+github.com/prn-tf/alexander-storage/internal/middleware
+github.com/prn-tf/alexander-storage/internal/service
+github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds
+github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations
+github.com/aws/aws-sdk-go-v2/credentials/logincreds
+github.com/prn-tf/alexander-storage/internal/handler
+github.com/aws/aws-sdk-go-v2/service/s3
+github.com/aws/aws-sdk-go-v2/credentials/ssocreds
+github.com/aws/aws-sdk-go-v2/credentials/stscreds
+github.com/aws/aws-sdk-go-v2/config
+github.com/prn-tf/alexander-storage/internal/storage/s3
+modernc.org/sqlite
+github.com/prn-tf/alexander-storage/internal/repository/sqlite
+github.com/prn-tf/alexander-storage/internal/repository/bootstrap
+github.com/prn-tf/alexander-storage/cmd/alexander-server
+internal/godebugs
+internal/coverage/rtcov
+internal/profilerecord
+internal/unsafeheader
+internal/msan
+internal/syscall/windows/sysdll
+internal/itoa
+internal/goarch
+internal/byteorder
+internal/trace/tracev2
+internal/asan
+unicode/utf16
+internal/goos
+internal/goexperiment
+sync/atomic
+internal/cpu
+unicode/utf8
+math/bits
+unicode
+cmp
+encoding
+structs
+internal/nettrace
+log/internal
+container/list
+crypto/internal/fips140/alias
+crypto/internal/fips140deps/byteorder
+internal/abi
+internal/runtime/gc
+internal/runtime/atomic
+internal/runtime/math
+internal/runtime/sys
+crypto/internal/boring/sig
+vendor/golang.org/x/crypto/cryptobyte/asn1
+vendor/golang.org/x/crypto/internal/alias
+golang.org/x/text/encoding/internal/identifier
+golang.org/x/text/internal/utf8internal
+github.com/pelletier/go-toml/v2/internal/characters
+crypto/internal/fips140/subtle
+github.com/spf13/viper/internal/features
+log/slog/internal
+internal/runtime/strconv
+golang.org/x/crypto/internal/alias
+github.com/jackc/puddle/v2/internal/genstack
+golang.org/x/exp/constraints
+google.golang.org/protobuf/internal/flags
+google.golang.org/protobuf/internal/set
+internal/runtime/exithook
+github.com/lib/pq/oid
+github.com/aws/aws-sdk-go-v2/internal/sdkio
+github.com/aws/smithy-go/container/private/cache
+github.com/dgryski/go-rendezvous
+github.com/redis/go-redis/v9/auth
+google.golang.org/grpc/serviceconfig
+google.golang.org/grpc/encoding/internal
+github.com/aws/smithy-go/container/private/cache/lru
+internal/bytealg
+internal/chacha8rand
+math
+crypto/internal/fips140deps/cpu
+internal/synctest
+internal/race
+internal/sync
+internal/runtime/maps
+internal/stringslite
+runtime
+weak
+crypto/subtle
+iter
+internal/reflectlite
+runtime/metrics
+sync
+maps
+slices
+github.com/jackc/pgx/v5/internal/iobufpool
+log/slog/internal/buffer
+internal/bisect
+crypto/internal/fips140cache
+google.golang.org/protobuf/internal/pragma
+internal/singleflight
+github.com/aws/smithy-go/sync
+internal/testlog
+unique
+errors
+sort
+internal/godebug
+internal/oserror
+io
+path
+vendor/golang.org/x/net/dns/dnsmessage
+strconv
+github.com/go-viper/mapstructure/v2/internal/errors
+google.golang.org/grpc/internal/buffer
+math/rand/v2
+golang.org/x/text/internal/tag
+github.com/beorn7/perks/quantile
+syscall
+bytes
+hash
+crypto/internal/randutil
+strings
+github.com/jackc/pgx/v5/pgconn/internal/bgreader
+internal/saferio
+github.com/aws/smithy-go/transport/http/internal/io
+github.com/prometheus/client_golang/prometheus/promhttp/internal
+crypto/internal/fips140deps/godebug
+math/rand
+encoding/base64
+golang.org/x/crypto/blowfish
+net/netip
+reflect
+hash/crc32
+crypto
+hash/fnv
+github.com/redis/go-redis/v9/internal/rand
+golang.org/x/text/transform
+vendor/golang.org/x/text/transform
+github.com/aws/smithy-go/io
+bufio
+crypto/internal/fips140
+crypto/internal/impl
+encoding/pem
+net/http/internal/ascii
+github.com/munnerz/goautoneg
+html
+github.com/golang-migrate/migrate/v4/internal/url
+regexp/syntax
+github.com/aws/aws-sdk-go-v2/internal/strings
+golang.org/x/text/runes
+golang.org/x/text/encoding
+internal/syscall/windows/registry
+internal/syscall/windows
+crypto/internal/fips140/sha3
+github.com/mattn/go-isatty
+golang.org/x/text/width
+github.com/aws/aws-sdk-go-v2/aws/arn
+github.com/golang-migrate/migrate/v4/database/multistmt
+golang.org/x/text/encoding/internal
+github.com/redis/go-redis/v9/internal/hashtag
+time
+crypto/internal/fips140/sha256
+crypto/internal/fips140/sha512
+internal/syscall/execenv
+regexp
+golang.org/x/text/encoding/unicode
+crypto/sha3
+crypto/internal/fips140/hmac
+internal/fmtsort
+encoding/binary
+modernc.org/libc/errno
+modernc.org/libc/fcntl
+modernc.org/libc/pthread
+modernc.org/libc/limits
+modernc.org/libc/sys/types
+modernc.org/libc/sys/stat
+modernc.org/libc/stdio
+modernc.org/libc/signal
+modernc.org/libc/unistd
+modernc.org/libc/time
+crypto/internal/fips140hash
+crypto/internal/fips140/check
+context
+github.com/ncruces/go-strftime
+io/fs
+github.com/aws/smithy-go/ptr
+internal/poll
+github.com/aws/aws-sdk-go-v2/internal/timeconv
+google.golang.org/grpc/backoff
+google.golang.org/grpc/balancer/pickfirst/internal
+google.golang.org/grpc/internal/idle
+golang.org/x/net/internal/httpsfv
+google.golang.org/grpc/keepalive
+crypto/internal/fips140/aes
+crypto/internal/fips140/nistec/fiat
+crypto/internal/fips140/edwards25519/field
+crypto/internal/fips140/bigmod
+crypto/internal/fips140/hkdf
+crypto/internal/fips140/tls12
+crypto/fips140
+github.com/jackc/pgx/v5/pgconn/ctxwatch
+golang.org/x/sync/semaphore
+github.com/aws/aws-sdk-go-v2/internal/sdk
+github.com/aws/smithy-go/context
+crypto/tls/internal/fips140tls
+github.com/aws/aws-sdk-go-v2/service/internal/s3shared/config
+crypto/internal/fips140/tls13
+google.golang.org/grpc/internal/backoff
+github.com/jackc/puddle/v2
+google.golang.org/grpc/internal/grpcsync
+internal/filepathlite
+github.com/spf13/afero/internal/common
+embed
+crypto/internal/fips140/edwards25519
+golang.org/x/crypto/internal/poly1305
+vendor/golang.org/x/crypto/internal/poly1305
+github.com/cespare/xxhash/v2
+github.com/jackc/pgx/v5/internal/pgio
+google.golang.org/protobuf/internal/editiondefaults
+os
+crypto/internal/fips140/nistec
+github.com/jackc/pgpassfile
+crypto/internal/sysrand
+google.golang.org/protobuf/internal/detrand
+google.golang.org/grpc/internal/envconfig
+github.com/mattn/go-colorable
+fmt
+path/filepath
+io/ioutil
+os/signal
+vendor/golang.org/x/sys/cpu
+golang.org/x/sys/cpu
+net
+crypto/internal/entropy
+crypto/internal/fips140/drbg
+github.com/spf13/afero/mem
+github.com/prn-tf/alexander-storage/internal/storage
+os/exec
+crypto/internal/fips140/mlkem
+crypto/internal/fips140/aes/gcm
+crypto/internal/fips140/rsa
+crypto/internal/fips140/ed25519
+crypto/internal/fips140only
+crypto/internal/fips140/ecdh
+crypto/internal/fips140/ecdsa
+flag
+encoding/json
+encoding/csv
+net/url
+runtime/debug
+golang.org/x/text/unicode/norm
+log
+compress/flate
+math/big
+crypto/hkdf
+crypto/md5
+crypto/rc4
+encoding/hex
+crypto/cipher
+vendor/golang.org/x/text/unicode/norm
+vendor/golang.org/x/net/http2/hpack
+mime
+mime/quotedprintable
+net/http/internal
+github.com/spf13/cast/internal
+text/template/parse
+vendor/golang.org/x/text/unicode/bidi
+github.com/sourcegraph/conc/panics
+github.com/subosito/gotenv
+github.com/pelletier/go-toml/v2/internal/danger
+compress/gzip
+go.yaml.in/yaml/v3
+crypto/internal/boring
+crypto/des
+github.com/sourcegraph/conc
+crypto/aes
+crypto/ecdh
+crypto/sha512
+crypto/hmac
+vendor/golang.org/x/crypto/chacha20
+crypto/sha1
+crypto/sha256
+database/sql/driver
+github.com/pelletier/go-toml/v2/unstable
+github.com/sourcegraph/conc/pool
+golang.org/x/crypto/chacha20
+vendor/golang.org/x/text/secure/bidirule
+golang.org/x/crypto/hkdf
+github.com/jackc/pgx/v5/internal/sanitize
+github.com/jackc/pgservicefile
+vendor/golang.org/x/crypto/chacha20poly1305
+golang.org/x/crypto/pbkdf2
+golang.org/x/crypto/chacha20poly1305
+vendor/golang.org/x/net/idna
+golang.org/x/text/internal/language
+golang.org/x/text/unicode/bidi
+os/user
+encoding/xml
+github.com/pelletier/go-toml/v2/internal/tracker
+database/sql
+google.golang.org/protobuf/internal/errors
+go/token
+google.golang.org/protobuf/internal/version
+google.golang.org/protobuf/encoding/protowire
+go.yaml.in/yaml/v2
+text/template
+github.com/spf13/viper/internal/encoding/json
+github.com/pelletier/go-toml/v2
+log/slog
+github.com/jackc/pgx/v5/pgproto3
+golang.org/x/text/secure/bidirule
+github.com/golang-migrate/migrate/v4/database
+github.com/golang-migrate/migrate/v4/source
+google.golang.org/protobuf/reflect/protoreflect
+golang.org/x/text/internal/language/compact
+github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
+github.com/aws/smithy-go/internal/sync/singleflight
+crypto/rand
+crypto/elliptic
+crypto/internal/boring/bbig
+encoding/asn1
+crypto/dsa
+golang.org/x/text/language
+crypto/ed25519
+crypto/internal/hpke
+crypto/rsa
+github.com/spf13/viper/internal/encoding/toml
+github.com/prn-tf/alexander-storage/internal/pkg/crypto
+html/template
+github.com/spf13/viper/internal/encoding/yaml
+github.com/dustin/go-humanize
+github.com/remyoudompheng/bigfft
+golang.org/x/crypto/bcrypt
+google.golang.org/protobuf/internal/descfmt
+google.golang.org/protobuf/internal/descopts
+google.golang.org/protobuf/internal/strs
+google.golang.org/protobuf/internal/encoding/messageset
+google.golang.org/protobuf/internal/genid
+google.golang.org/protobuf/internal/order
+google.golang.org/protobuf/runtime/protoiface
+golang.org/x/text/internal
+github.com/golang-migrate/migrate/v4
+modernc.org/mathutil
+google.golang.org/protobuf/internal/encoding/text
+github.com/lib/pq/scram
+google.golang.org/protobuf/reflect/protoregistry
+github.com/golang-migrate/migrate/v4/source/iofs
+github.com/aws/aws-sdk-go-v2/internal/rand
+vendor/golang.org/x/crypto/cryptobyte
+crypto/x509/pkix
+google.golang.org/protobuf/internal/protolazy
+golang.org/x/text/cases
+github.com/aws/smithy-go/logging
+github.com/aws/smithy-go
+github.com/aws/smithy-go/time
+github.com/aws/smithy-go/rand
+github.com/golang-migrate/migrate/v4/source/file
+github.com/aws/smithy-go/middleware
+github.com/aws/aws-sdk-go-v2/aws/ratelimit
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
+github.com/aws/aws-sdk-go-v2/internal/shareddefaults
+github.com/aws/smithy-go/document
+github.com/aws/smithy-go/auth
+github.com/aws/smithy-go/metrics
+golang.org/x/sys/windows
+github.com/go-viper/mapstructure/v2
+net/textproto
+vendor/golang.org/x/net/http/httpproxy
+github.com/spf13/pflag
+github.com/spf13/cast
+github.com/google/uuid
+github.com/rs/zerolog/internal/json
+github.com/jackc/pgx/v5/pgtype
+crypto/ecdsa
+google.golang.org/protobuf/internal/encoding/defval
+google.golang.org/protobuf/proto
+github.com/aws/smithy-go/tracing
+github.com/aws/aws-sdk-go-v2/internal/context
+github.com/aws/aws-sdk-go-v2/aws/protocol/restjson
+github.com/aws/aws-sdk-go-v2/service/signin/types
+github.com/aws/smithy-go/encoding
+github.com/prn-tf/alexander-storage/internal/domain
+vendor/golang.org/x/net/http/httpguts
+mime/multipart
+github.com/rs/zerolog
+golang.org/x/text/secure/precis
+net/mail
+github.com/aws/aws-sdk-go-v2/internal/middleware
+github.com/aws/aws-sdk-go-v2/service/sso/types
+github.com/aws/smithy-go/encoding/json
+github.com/aws/aws-sdk-go-v2/service/ssooidc/types
+github.com/aws/aws-sdk-go-v2/aws/protocol/xml
+github.com/aws/aws-sdk-go-v2/service/sts/types
+google.golang.org/protobuf/internal/filedesc
+github.com/spf13/viper/internal/encoding/dotenv
+google.golang.org/protobuf/encoding/prototext
+google.golang.org/protobuf/encoding/protodelim
+github.com/aws/smithy-go/encoding/xml
+github.com/aws/aws-sdk-go-v2/internal/ini
+github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream
+github.com/aws/aws-sdk-go-v2/service/internal/s3shared/arn
+github.com/aws/aws-sdk-go-v2/service/s3/types
+github.com/aws/smithy-go/waiter
+github.com/redis/go-redis/v9/internal/util
+github.com/redis/go-redis/v9/internal/interfaces
+golang.org/x/net/internal/timeseries
+github.com/redis/go-redis/v9/internal
+github.com/aws/aws-sdk-go-v2/service/s3/internal/arn
+github.com/redis/go-redis/v9/internal/proto
+github.com/redis/go-redis/v9/internal/hscan
+text/tabwriter
+google.golang.org/grpc/grpclog/internal
+google.golang.org/grpc/attributes
+google.golang.org/protobuf/internal/encoding/json
+google.golang.org/grpc/internal/mem
+golang.org/x/net/idna
+golang.org/x/net/http2/hpack
+google.golang.org/grpc/grpclog
+google.golang.org/grpc/internal/resolver/dns/internal
+crypto/x509
+github.com/aws/aws-sdk-go-v2/internal/v4a/internal/crypto
+github.com/redis/go-redis/v9/internal/maintnotifications/logs
+github.com/prn-tf/alexander-storage/internal/delta
+github.com/prn-tf/alexander-storage/internal/migration
+golang.org/x/net/http/httpguts
+google.golang.org/grpc/connectivity
+google.golang.org/grpc/internal/grpclog
+google.golang.org/grpc/internal/syscall
+github.com/redis/go-redis/v9/push
+github.com/redis/go-redis/v9/internal/pool
+github.com/rs/zerolog/log
+google.golang.org/protobuf/internal/encoding/tag
+google.golang.org/protobuf/encoding/protojson
+google.golang.org/protobuf/internal/impl
+google.golang.org/grpc/internal
+github.com/prn-tf/alexander-storage/internal/storage/filesystem
+github.com/fsnotify/fsnotify/internal
+modernc.org/memory
+github.com/redis/go-redis/v9/internal/auth/streaming
+github.com/redis/go-redis/v9/maintnotifications
+github.com/fsnotify/fsnotify
+google.golang.org/grpc/metadata
+google.golang.org/grpc/codes
+google.golang.org/grpc/mem
+modernc.org/libc
+crypto/tls
+google.golang.org/grpc/stats
+google.golang.org/grpc/internal/balancerload
+google.golang.org/grpc/internal/grpcutil
+google.golang.org/grpc/tap
+google.golang.org/grpc/internal/transport/readyreader
+google.golang.org/grpc/experimental/stats
+google.golang.org/grpc/encoding
+google.golang.org/grpc/internal/stats
+google.golang.org/protobuf/internal/filetype
+google.golang.org/protobuf/runtime/protoimpl
+modernc.org/sqlite/lib
+google.golang.org/protobuf/types/known/timestamppb
+google.golang.org/protobuf/protoadapt
+google.golang.org/protobuf/types/known/durationpb
+google.golang.org/protobuf/types/known/anypb
+google.golang.org/grpc/internal/pretty
+google.golang.org/grpc/encoding/proto
+github.com/prometheus/client_model/go
+google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/genproto/googleapis/rpc/status
+google.golang.org/grpc/internal/status
+net/http/httptrace
+google.golang.org/grpc/internal/credentials
+github.com/jackc/pgx/v5/pgconn
+github.com/lib/pq
+github.com/redis/go-redis/v9
+google.golang.org/grpc/credentials
+net/http/internal/httpcommon
+golang.org/x/net/internal/httpcommon
+google.golang.org/grpc/status
+github.com/prometheus/common/model
+google.golang.org/grpc/internal/binarylog
+net/http
+google.golang.org/grpc/internal/channelz
+google.golang.org/grpc/resolver
+google.golang.org/grpc/credentials/insecure
+google.golang.org/grpc/peer
+google.golang.org/grpc/internal/balancer/weight
+google.golang.org/grpc/internal/metadata
+google.golang.org/grpc/internal/proxyattributes
+google.golang.org/grpc/internal/transport/networktype
+google.golang.org/grpc/internal/resolver/passthrough
+google.golang.org/grpc/balancer/grpclb/state
+google.golang.org/grpc/channelz
+google.golang.org/grpc/internal/resolver/unix
+github.com/jackc/pgx/v5/internal/stmtcache
+google.golang.org/grpc/internal/resolver/dns
+google.golang.org/grpc/balancer
+github.com/jackc/pgx/v5
+github.com/prometheus/client_golang/prometheus/internal
+google.golang.org/grpc/balancer/base
+google.golang.org/grpc/balancer/pickfirst
+google.golang.org/grpc/internal/serviceconfig
+google.golang.org/grpc/resolver/dns
+google.golang.org/grpc/internal/resolver
+google.golang.org/grpc/balancer/endpointsharding
+google.golang.org/grpc/internal/balancer/gracefulswitch
+github.com/golang-migrate/migrate/v4/database/postgres
+google.golang.org/grpc/balancer/roundrobin
+github.com/prn-tf/alexander-storage/cmd/alexander-migrate
+github.com/jackc/pgx/v5/pgxpool
+github.com/aws/smithy-go/endpoints
+expvar
+net/http/httputil
+github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil/header
+github.com/aws/smithy-go/encoding/httpbinding
+github.com/prn-tf/alexander-storage/internal/auth
+golang.org/x/net/trace
+github.com/go-chi/chi/v5
+github.com/prometheus/common/expfmt
+github.com/aws/aws-sdk-go-v2/internal/v4a/internal/v4
+github.com/spf13/afero
+golang.org/x/net/http2
+github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil
+github.com/aws/smithy-go/transport/http
+github.com/prometheus/client_golang/prometheus
+github.com/sagikazarmark/locafero
+github.com/spf13/viper
+github.com/aws/smithy-go/auth/bearer
+github.com/aws/aws-sdk-go-v2/internal/auth
+github.com/aws/smithy-go/endpoints/private/rulesfn
+github.com/aws/aws-sdk-go-v2/internal/endpoints/awsrulesfn
+github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding
+github.com/aws/aws-sdk-go-v2/aws/protocol/query
+github.com/aws/smithy-go/private/requestcompression
+github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/eventstreamapi
+github.com/aws/aws-sdk-go-v2/aws
+github.com/prn-tf/alexander-storage/internal/config
+github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
+github.com/aws/aws-sdk-go-v2/aws/signer/internal/v4
+github.com/aws/aws-sdk-go-v2/internal/configsources
+github.com/aws/aws-sdk-go-v2/credentials
+github.com/aws/aws-sdk-go-v2/internal/endpoints
+github.com/aws/aws-sdk-go-v2/credentials/processcreds
+github.com/aws/aws-sdk-go-v2/aws/defaults
+github.com/aws/aws-sdk-go-v2/aws/middleware
+github.com/prn-tf/alexander-storage/internal/repository
+github.com/aws/aws-sdk-go-v2/service/signin/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/sso/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/ssooidc/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/sts/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/s3/internal/endpoints
+github.com/aws/aws-sdk-go-v2/aws/transport/http
+github.com/aws/aws-sdk-go-v2/aws/signer/v4
+github.com/aws/aws-sdk-go-v2/aws/retry
+github.com/prn-tf/alexander-storage/internal/lock
+github.com/prn-tf/alexander-storage/internal/cache/memory
+github.com/prn-tf/alexander-storage/internal/repository/postgres
+github.com/prometheus/client_golang/prometheus/promauto
+github.com/prometheus/client_golang/prometheus/promhttp
+github.com/aws/aws-sdk-go-v2/internal/auth/smithy
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
+github.com/aws/aws-sdk-go-v2/internal/v4a
+github.com/aws/aws-sdk-go-v2/service/internal/s3shared
+github.com/aws/aws-sdk-go-v2/service/internal/checksum
+google.golang.org/grpc/internal/transport
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds
+github.com/aws/aws-sdk-go-v2/credentials/endpointcreds/internal/client
+github.com/aws/aws-sdk-go-v2/service/sso
+github.com/aws/aws-sdk-go-v2/service/signin
+github.com/aws/aws-sdk-go-v2/service/ssooidc
+github.com/aws/aws-sdk-go-v2/service/sts
+github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations
+github.com/prn-tf/alexander-storage/internal/metrics
+github.com/aws/aws-sdk-go-v2/credentials/endpointcreds
+github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds
+github.com/prn-tf/alexander-storage/internal/service
+github.com/prn-tf/alexander-storage/internal/middleware
+github.com/aws/aws-sdk-go-v2/credentials/logincreds
+github.com/aws/aws-sdk-go-v2/service/s3
+github.com/aws/aws-sdk-go-v2/credentials/ssocreds
+github.com/prn-tf/alexander-storage/internal/handler
+google.golang.org/grpc/internal/resolver/delegatingresolver
+google.golang.org/grpc
+github.com/aws/aws-sdk-go-v2/credentials/stscreds
+github.com/aws/aws-sdk-go-v2/config
+github.com/prn-tf/alexander-storage/internal/cluster/proto
+github.com/prn-tf/alexander-storage/internal/cluster
+github.com/prn-tf/alexander-storage/internal/tiering
+github.com/prn-tf/alexander-storage/internal/cache/redis
+modernc.org/sqlite
+github.com/prn-tf/alexander-storage/internal/storage/s3
+github.com/prn-tf/alexander-storage/internal/repository/sqlite
+github.com/prn-tf/alexander-storage/internal/repository/bootstrap
+github.com/prn-tf/alexander-storage/cmd/alexander-admin
+github.com/prn-tf/alexander-storage/cmd/alexander-server
+All evidence captured and self-checks passed.
+Artifacts in: C:\Users\tunay\AppData\Local\Temp\grok-goal-e1e2fd585769\implementer

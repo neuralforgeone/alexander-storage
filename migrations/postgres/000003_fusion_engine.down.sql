@@ -4,13 +4,13 @@
 DROP VIEW IF EXISTS migration_overview;
 DROP VIEW IF EXISTS cluster_health;
 
+-- Drop trigger before dependent function
+DROP TRIGGER IF EXISTS trg_update_blob_access_stats ON blob_access_log;
+
 -- Drop functions
 DROP FUNCTION IF EXISTS decrement_chunk_ref(VARCHAR);
 DROP FUNCTION IF EXISTS increment_chunk_ref(VARCHAR);
 DROP FUNCTION IF EXISTS update_blob_access_stats();
-
--- Drop trigger
-DROP TRIGGER IF EXISTS trg_update_blob_access_stats ON blob_access_log;
 
 -- Drop migration tracking
 DROP TABLE IF EXISTS migration_progress;

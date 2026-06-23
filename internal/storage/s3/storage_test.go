@@ -1,9 +1,16 @@
 package s3
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"net/http"
+	"strconv"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -29,18 +36,84 @@ func TestNewStorage_RequiresBucket(t *testing.T) {
 	require.Contains(t, err.Error(), "bucket")
 }
 
-func TestDelete_ReturnsNotFoundForMissingKey(t *testing.T) {
-	t.Parallel()
+type mockS3Store struct {
+	mu      sync.Mutex
+	objects map[string][]byte
+}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodHead {
-			w.WriteHeader(http.StatusNotFound)
+func newMockS3Server(store *mockS3Store) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			http.Error(w, "bad path", http.StatusBadRequest)
 			return
 		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer server.Close()
+		parts := strings.SplitN(path, "/", 2)
+		bucket := parts[0]
+		key := ""
+		if len(parts) == 2 {
+			key = parts[1]
+		}
 
+		switch r.Method {
+		case http.MethodHead:
+			if bucket == "test-bucket" && key == "" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			store.mu.Lock()
+			body, ok := store.objects[key]
+			store.mu.Unlock()
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+			w.WriteHeader(http.StatusOK)
+
+		case http.MethodPut:
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			store.mu.Lock()
+			store.objects[key] = body
+			store.mu.Unlock()
+			w.WriteHeader(http.StatusOK)
+
+		case http.MethodGet:
+			store.mu.Lock()
+			body, ok := store.objects[key]
+			store.mu.Unlock()
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(body)
+
+		case http.MethodDelete:
+			store.mu.Lock()
+			_, ok := store.objects[key]
+			if ok {
+				delete(store.objects, key)
+			}
+			store.mu.Unlock()
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+
+		default:
+			http.Error(w, "unsupported", http.StatusMethodNotAllowed)
+		}
+	}))
+}
+
+func newTestStorage(t *testing.T, serverURL string) *Storage {
+	t.Helper()
 	ctx := context.Background()
 	awsCfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion("us-east-1"),
@@ -49,17 +122,66 @@ func TestDelete_ReturnsNotFoundForMissingKey(t *testing.T) {
 	require.NoError(t, err)
 
 	client := awss3.NewFromConfig(awsCfg, func(o *awss3.Options) {
-		o.BaseEndpoint = aws.String(server.URL)
+		o.BaseEndpoint = aws.String(serverURL)
 		o.UsePathStyle = true
 	})
 
-	s := &Storage{
+	return &Storage{
 		client: client,
 		bucket: "test-bucket",
 		prefix: "blobs/",
 		logger: zerolog.Nop(),
 	}
+}
 
-	err = s.Delete(ctx, "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
+func TestStorage_RoundtripStoreRetrieveGetSizeHealthCheck(t *testing.T) {
+	t.Parallel()
+
+	store := &mockS3Store{objects: make(map[string][]byte)}
+	server := newMockS3Server(store)
+	defer server.Close()
+
+	s := newTestStorage(t, server.URL)
+	ctx := context.Background()
+	payload := []byte("hello s3 streaming backend")
+
+	hash, err := s.Store(ctx, bytes.NewReader(payload), int64(len(payload)))
+	require.NoError(t, err)
+
+	hasher := sha256.Sum256(payload)
+	require.Equal(t, hex.EncodeToString(hasher[:]), hash)
+
+	require.NoError(t, s.HealthCheck(ctx))
+
+	gotSize, err := s.GetSize(ctx, hash)
+	require.NoError(t, err)
+	require.Equal(t, int64(len(payload)), gotSize)
+
+	rc, err := s.Retrieve(ctx, hash)
+	require.NoError(t, err)
+	defer rc.Close()
+	retrieved, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	require.Equal(t, payload, retrieved)
+
+	exists, err := s.Exists(ctx, hash)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	dupHash, err := s.Store(ctx, bytes.NewReader(payload), int64(len(payload)))
+	require.NoError(t, err)
+	require.Equal(t, hash, dupHash)
+}
+
+func TestDelete_ReturnsNotFoundForMissingKey(t *testing.T) {
+	t.Parallel()
+
+	store := &mockS3Store{objects: make(map[string][]byte)}
+	server := newMockS3Server(store)
+	defer server.Close()
+
+	s := newTestStorage(t, server.URL)
+	hash := "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+	err := s.Delete(context.Background(), hash)
 	require.ErrorIs(t, err, storage.ErrBlobNotFound)
 }
