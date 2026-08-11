@@ -1,37 +1,34 @@
-# Alexander Storage Documentation
+# Alexander Storage docs
 
-Welcome to the Alexander Storage documentation. Alexander is a production-ready,
-S3-compatible object storage server written in Go.
+Self-hosted **S3-compatible** object storage with a **web console**.
 
-## Quick Links
+## Start here
 
-| Section | Description |
-|---------|-------------|
-| [Quick Start](viewer.html?doc=guides/quickstart.md) | Get running in 5 minutes |
-| [Production Deployment](viewer.html?doc=guides/production.md) | Production best practices |
-| [Troubleshooting](viewer.html?doc=guides/troubleshooting.md) | Common issues and solutions |
-| [Performance Tuning](viewer.html?doc=operations/performance-tuning.md) | Optimization guide |
-| [Backup & Recovery](viewer.html?doc=operations/backup-dr.md) | Disaster recovery |
-| [Runbooks](viewer.html?doc=operations/runbooks.md) | Operational procedures |
-| [API Reference](api/openapi.yaml) | OpenAPI 3.0 specification |
+| Guide | When |
+|-------|------|
+| [Quick start](guides/quickstart.md) | First install, first bucket, first upload |
+| [Main README](../README.md) | Everyday use: console, `mc`, AWS CLI, config |
+| [Production](guides/production.md) | Deploy for real traffic and retention |
+| [Troubleshooting](guides/troubleshooting.md) | Login, signatures, keys, health |
 
-## Architecture Highlights
+## Operate
 
-- **S3 API compatibility** — works with `aws-cli`, `boto3`, and Terraform
-- **Content-addressable storage** — SHA-256 deduplication
-- **Multiple backends** — filesystem and S3
-- **Cluster support** — gRPC inter-node communication
-- **Embedded or PostgreSQL** — SQLite for homelab, PostgreSQL for production
+| Guide | Topic |
+|-------|--------|
+| [Backup & DR](operations/backup-dr.md) | Metadata + blob backup |
+| [Performance](operations/performance-tuning.md) | Capacity and tuning |
+| [Runbooks](operations/runbooks.md) | Incident-style procedures |
 
-## Storage Backends
+## Reference
 
-Configure via `storage.backend`:
+| Doc | Content |
+|-----|---------|
+| [OpenAPI](api/openapi.yaml) | HTTP / S3-style operations |
 
-- `filesystem` — local disk with CAS sharding (default)
-- `s3` — S3-compatible remote storage (MinIO, AWS S3)
+## How people usually use it
 
-See [Production Deployment](guides/production.md) for configuration examples.
+1. Run **embedded mode** (SQLite + disk) or a packaged install.  
+2. Open **`/dashboard`**, sign in as admin, create a bucket, upload files.  
+3. Create **access keys** and point apps at the same host with `aws` / `mc` / SDKs.
 
----
-
-[View styled site](index.html)
+S3 lives at the server root; the console is only under `/dashboard`.
