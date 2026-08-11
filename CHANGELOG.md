@@ -1,87 +1,52 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.1.0] - 2026-08-11
 
 ### Added
 
-- Initial project structure and architecture
-- AWS Signature V4 authentication
-  - Request signing verification
-  - Presigned URL generation and verification
-  - Access key management
-- User management service
-  - User creation with bcrypt password hashing
-  - User authentication
-  - User activation/deactivation
-- IAM service for access key operations
-  - Create, list, activate, deactivate, and delete access keys
-  - AES-256-GCM encryption for secret key storage
-  - Automatic expired key cleanup
-- PostgreSQL repositories for all domain entities
-  - Users, access keys, buckets, blobs, objects, multipart uploads
-  - Connection pooling with pgx
-- Redis caching layer (optional)
-  - Metadata caching
-  - Distributed locking support
-- Configuration management with Viper
-  - YAML file configuration
-  - Environment variable overrides
-- Content-addressable storage (CAS) with filesystem backend
-  - SHA-256 based deduplication
-  - Two-level directory sharding
-  - Reference counting for blob management
-- Structured logging with zerolog
-- Database migrations with golang-migrate
-- Docker and Docker Compose support
+- **Web console** at `/dashboard`: session login (admin), bucket browser, object list by prefix, upload, text/image preview, download, ACL and lifecycle management, user directory
+- CSRF protection for console forms (including multipart upload)
+- SQLite and PostgreSQL wiring for **sessions** and **lifecycle** repositories
+- S3 **multi-object delete** (`POST /{bucket}?delete=`) for MinIO Client / AWS CLI `rm`
+- **AWS chunked** body decoding for streaming SigV4 uploads (`STREAMING-AWS4-HMAC-SHA256-PAYLOAD`)
+- Operator-focused README and quickstart (install, console, `mc` / AWS CLI)
 
-### Security
+### Fixed
 
-- AES-256-GCM encryption for secret key storage
-- Bcrypt password hashing for user passwords
-- AWS Signature V4 request authentication
-- Constant-time signature comparison
+- CI/toolchain alignment with `go 1.25` (lint + tests + Docker)
+- SigV4 verification using `r.Host` (fixes `SignatureDoesNotMatch` for real clients)
+- CreateBucket default ACL `private` (SQLite CHECK constraint)
+- Cluster gRPC `NotFound` mapped to domain blob not found
 
-## [0.1.0] - TBD
+### Changed
 
-Initial release (planned)
+- golangci-lint v2 config and action v9
+- Docker builder image `golang:1.26-alpine`
+- GitHub Actions: `setup-go@v6`, `upload-artifact@v7`
+- Dependency bumps:
+  - `aws-sdk-go-v2` → v1.41.0
+  - `aws-sdk-go-v2/config` → v1.32.5
+  - `aws-sdk-go-v2/credentials` → v1.19.5
+  - `aws-sdk-go-v2/service/s3` → v1.93.2
+  - `golang.org/x/crypto` → v0.55.0
 
-### Planned Features
+## [2.0.0] - 2025-12-06
 
-- Bucket operations (CreateBucket, DeleteBucket, ListBuckets, HeadBucket)
-- Object operations (PutObject, GetObject, HeadObject, DeleteObject)
-- Object versioning support
-- Multipart upload support
-- Prometheus metrics endpoint
-- Health check endpoints
+Production readiness release (Fusion Engine surfaces, deploy assets, security hardening). See git history for `v2.0.0`.
+
+## [1.0.0] - 2025-12-06
+
+Initial tagged release.
 
 ---
 
-## Version History
+## Versioning
 
-### Versioning Scheme
-
-We use [Semantic Versioning](https://semver.org/):
-
-- **MAJOR**: Incompatible API changes
-- **MINOR**: New functionality (backwards compatible)
-- **PATCH**: Bug fixes (backwards compatible)
-
-### Pre-1.0 Development
-
-During pre-1.0 development:
-- The API is not considered stable
-- Minor versions may include breaking changes
-- Patch versions are for bug fixes only
-
-### Release Process
-
-1. Update CHANGELOG.md with release notes
-2. Update version in relevant files
-3. Create a git tag: `git tag v0.1.0`
-4. Push tag: `git push origin v0.1.0`
-5. GitHub Actions will build and publish release artifacts
+- **MAJOR**: incompatible API or behavior changes
+- **MINOR**: new functionality, backwards compatible
+- **PATCH**: bug fixes, backwards compatible

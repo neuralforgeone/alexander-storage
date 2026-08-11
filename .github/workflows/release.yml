@@ -37,7 +37,7 @@ jobs:
       - name: Build binaries
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          LDFLAGS="-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          LDFLAGS="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GITHUB_SHA} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           
           # Linux
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/alexander-server-linux-amd64 ./cmd/alexander-server
