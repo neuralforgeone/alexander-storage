@@ -56,7 +56,7 @@ func GetCanonicalRequest(r *http.Request, signedHeaders []string, payloadHash st
 		r.Method,
 		getCanonicalURI(r.URL.Path),
 		getCanonicalQueryString(r.URL.Query()),
-		getCanonicalHeaders(r.Header, signedHeaders),
+		getCanonicalHeaders(r, signedHeaders),
 		strings.Join(signedHeaders, ";"),
 		payloadHash,
 	)
@@ -118,18 +118,29 @@ func getCanonicalQueryString(query url.Values) string {
 }
 
 // getCanonicalHeaders builds the canonical headers string.
-func getCanonicalHeaders(headers http.Header, signedHeaders []string) string {
+// Host is special in net/http: clients put it on the request line, so it often
+// lives in r.Host rather than r.Header. Using only Header.Get("host") produces
+// an empty host line and breaks SigV4 verification for real S3 clients (aws-cli, mc).
+func getCanonicalHeaders(r *http.Request, signedHeaders []string) string {
 	var canonical strings.Builder
 
 	for _, header := range signedHeaders {
-		// Get header value (headers are case-insensitive)
-		value := headers.Get(header)
+		lower := strings.ToLower(header)
+		var value string
+		if lower == "host" {
+			value = r.Host
+			if value == "" {
+				value = r.Header.Get("Host")
+			}
+		} else {
+			value = r.Header.Get(header)
+		}
 
 		// Trim and collapse whitespace
 		value = strings.TrimSpace(value)
 		value = strings.Join(strings.Fields(value), " ")
 
-		canonical.WriteString(strings.ToLower(header))
+		canonical.WriteString(lower)
 		canonical.WriteString(":")
 		canonical.WriteString(value)
 		canonical.WriteString("\n")

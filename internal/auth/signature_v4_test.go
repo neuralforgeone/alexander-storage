@@ -30,6 +30,20 @@ func TestGetCanonicalRequest(t *testing.T) {
 	require.Contains(t, canonical, EmptyStringSHA256)
 }
 
+func TestGetCanonicalRequestUsesRequestHost(t *testing.T) {
+	t.Parallel()
+
+	// Real HTTP servers put Host on r.Host; r.Header.Get("host") is often empty.
+	req, err := http.NewRequest(http.MethodPut, "http://127.0.0.1:19000/demo-bucket", nil)
+	require.NoError(t, err)
+	req.Host = "127.0.0.1:19000"
+	req.Header.Del("Host")
+
+	canonical := GetCanonicalRequest(req, []string{"host"}, EmptyStringSHA256)
+	require.Contains(t, canonical, "host:127.0.0.1:19000\n")
+	require.NotContains(t, canonical, "host:\n")
+}
+
 func TestVerifySignatureRoundTrip(t *testing.T) {
 	t.Parallel()
 

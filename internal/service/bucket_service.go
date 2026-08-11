@@ -137,6 +137,7 @@ func (s *BucketService) CreateBucket(ctx context.Context, input CreateBucketInpu
 		Name:       input.Name,
 		Region:     region,
 		Versioning: domain.VersioningDisabled,
+		ACL:        domain.ACLPrivate,
 		ObjectLock: false,
 		CreatedAt:  time.Now().UTC(),
 	}

@@ -193,6 +193,20 @@ func (rt *Router) handleBucketRequest(w http.ResponseWriter, r *http.Request, bu
 		return
 	}
 
+	// Multi-object delete: POST /{bucket}?delete=
+	if _, ok := query["delete"]; ok {
+		if r.Method == http.MethodPost {
+			rt.objectHandler.DeleteObjects(w, r, bucketName)
+			return
+		}
+		writeError(w, S3Error{
+			Code:           "MethodNotAllowed",
+			Message:        "The specified method is not allowed against this resource.",
+			HTTPStatusCode: http.StatusMethodNotAllowed,
+		})
+		return
+	}
+
 	// TODO: Add more sub-resources (lifecycle, policy, acl, etc.)
 
 	// Basic bucket operations

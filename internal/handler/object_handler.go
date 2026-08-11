@@ -152,8 +152,18 @@ func (h *ObjectHandler) PutObject(w http.ResponseWriter, r *http.Request, bucket
 		return
 	}
 
-	// Get content length
+	// Get content length (prefer decoded length for aws-chunked streaming uploads)
 	contentLength := r.ContentLength
+	body := io.Reader(r.Body)
+	payloadHash := r.Header.Get("X-Amz-Content-Sha256")
+	if auth.IsStreamingPayload(payloadHash) {
+		body = auth.NewAWSChunkedReader(r.Body)
+		if decoded := r.Header.Get("X-Amz-Decoded-Content-Length"); decoded != "" {
+			if n, err := strconv.ParseInt(decoded, 10, 64); err == nil {
+				contentLength = n
+			}
+		}
+	}
 	if contentLength < 0 {
 		writeError(w, S3Error{
 			Code:           "MissingContentLength",
@@ -173,7 +183,7 @@ func (h *ObjectHandler) PutObject(w http.ResponseWriter, r *http.Request, bucket
 	output, err := h.objectService.PutObject(ctx, service.PutObjectInput{
 		BucketName:  bucketName,
 		Key:         objectKey,
-		Body:        r.Body,
+		Body:        body,
 		Size:        contentLength,
 		ContentType: contentType,
 		Metadata:    metadata,
@@ -311,6 +321,98 @@ func (h *ObjectHandler) HeadObject(w http.ResponseWriter, r *http.Request, bucke
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// MultiDeleteRequest is the XML body for POST /{bucket}?delete=.
+type MultiDeleteRequest struct {
+	XMLName xml.Name             `xml:"Delete"`
+	Quiet   bool                 `xml:"Quiet"`
+	Objects []MultiDeleteObject  `xml:"Object"`
+}
+
+// MultiDeleteObject is one key (optional version) in a multi-delete request.
+type MultiDeleteObject struct {
+	Key       string `xml:"Key"`
+	VersionID string `xml:"VersionId"`
+}
+
+// MultiDeleteResult is the XML response for multi-object delete.
+type MultiDeleteResult struct {
+	XMLName xml.Name            `xml:"DeleteResult"`
+	Xmlns   string              `xml:"xmlns,attr"`
+	Deleted []MultiDeletedEntry `xml:"Deleted,omitempty"`
+	Errors  []MultiDeleteError  `xml:"Error,omitempty"`
+}
+
+// MultiDeletedEntry marks a successfully deleted key.
+type MultiDeletedEntry struct {
+	Key                   string `xml:"Key"`
+	VersionID             string `xml:"VersionId,omitempty"`
+	DeleteMarker          bool   `xml:"DeleteMarker,omitempty"`
+	DeleteMarkerVersionID string `xml:"DeleteMarkerVersionId,omitempty"`
+}
+
+// MultiDeleteError is a per-key delete failure.
+type MultiDeleteError struct {
+	Key     string `xml:"Key"`
+	Code    string `xml:"Code"`
+	Message string `xml:"Message"`
+}
+
+// DeleteObjects handles POST /{bucket}?delete= (multi-object delete used by mc/aws-cli).
+func (h *ObjectHandler) DeleteObjects(w http.ResponseWriter, r *http.Request, bucketName string) {
+	ctx := r.Context()
+
+	userCtx, ok := auth.GetUserContext(ctx)
+	if !ok {
+		h.logger.Error().Msg("no user context found")
+		writeError(w, ErrAccessDenied)
+		return
+	}
+
+	var req MultiDeleteRequest
+	if err := xml.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, S3Error{
+			Code:           "MalformedXML",
+			Message:        "The XML you provided was not well-formed or did not validate against our published schema.",
+			HTTPStatusCode: http.StatusBadRequest,
+		})
+		return
+	}
+
+	result := MultiDeleteResult{Xmlns: "http://s3.amazonaws.com/doc/2006-03-01/"}
+	for _, obj := range req.Objects {
+		if obj.Key == "" {
+			continue
+		}
+		output, err := h.objectService.DeleteObject(ctx, service.DeleteObjectInput{
+			BucketName: bucketName,
+			Key:        obj.Key,
+			VersionID:  obj.VersionID,
+			OwnerID:    userCtx.UserID,
+		})
+		if err != nil {
+			// S3 multi-delete is largely idempotent: missing keys still "Deleted"
+			if errors.Is(err, domain.ErrObjectNotFound) {
+				if !req.Quiet {
+					result.Deleted = append(result.Deleted, MultiDeletedEntry{Key: obj.Key, VersionID: obj.VersionID})
+				}
+				continue
+			}
+			result.Errors = append(result.Errors, MultiDeleteError{
+				Key:     obj.Key,
+				Code:    "InternalError",
+				Message: err.Error(),
+			})
+			continue
+		}
+		if !req.Quiet {
+			entry := MultiDeletedEntry{Key: obj.Key, VersionID: output.VersionID, DeleteMarker: output.DeleteMarker}
+			result.Deleted = append(result.Deleted, entry)
+		}
+	}
+
+	writeXML(w, http.StatusOK, result)
 }
 
 // DeleteObject handles DELETE /{bucket}/{key} requests.
