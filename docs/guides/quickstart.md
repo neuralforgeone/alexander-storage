@@ -82,9 +82,17 @@ aws --endpoint-url http://localhost:8080 --profile alexander s3 ls s3://my-bucke
 aws --endpoint-url http://localhost:8080 --profile alexander s3 cp s3://my-bucket/README.md downloaded.md
 ```
 
-## Access Dashboard
+## Access Web Console
 
-Open http://localhost:8080/dashboard in your browser and login with the credentials created above.
+Open **http://localhost:8080/dashboard** in your browser and sign in with the **admin** user created above (dashboard login is admin-only).
+
+From the console you can:
+
+- List and create buckets
+- Browse object prefixes (folders)
+- Upload files
+- Preview text/images and download objects
+- Manage users and lifecycle rules
 
 ## Next Steps
 

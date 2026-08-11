@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -178,11 +179,16 @@ func (m *CSRFMiddleware) validateToken(r *http.Request) bool {
 	}
 	cookieToken := cookie.Value
 
-	// Get token from request (header or form)
+	// Get token from request (header or form / multipart)
 	requestToken := r.Header.Get(m.config.HeaderName)
 	if requestToken == "" {
-		// Try form field
-		if err := r.ParseForm(); err == nil {
+		ct := r.Header.Get("Content-Type")
+		if strings.HasPrefix(ct, "multipart/form-data") {
+			// Limit memory for CSRF parse; handler may re-parse multipart.
+			if err := r.ParseMultipartForm(32 << 20); err == nil {
+				requestToken = r.FormValue(m.config.FormField)
+			}
+		} else if err := r.ParseForm(); err == nil {
 			requestToken = r.FormValue(m.config.FormField)
 		}
 	}

@@ -12,11 +12,13 @@ import (
 	"github.com/prn-tf/alexander-storage/internal/middleware"
 )
 
-// Router handles HTTP routing for the S3-compatible API.
+// Router handles HTTP routing for the S3-compatible API and web console.
 type Router struct {
 	bucketHandler     *BucketHandler
 	objectHandler     *ObjectHandler
 	multipartHandler  *MultipartHandler
+	dashboardHandler  *DashboardHandler
+	dashboardHTTP     http.Handler
 	healthChecker     *HealthChecker
 	authMiddleware    func(http.Handler) http.Handler
 	rateLimiter       *middleware.RateLimiter
@@ -31,6 +33,8 @@ type RouterConfig struct {
 	BucketHandler    *BucketHandler
 	ObjectHandler    *ObjectHandler
 	MultipartHandler *MultipartHandler
+	DashboardHandler *DashboardHandler
+	DashboardHTTP    http.Handler // pre-wrapped dashboard (CSRF etc.)
 	HealthChecker    *HealthChecker
 	AuthMiddleware   func(http.Handler) http.Handler
 	RateLimiter      *middleware.RateLimiter
@@ -50,6 +54,8 @@ func NewRouter(config RouterConfig) *Router {
 		bucketHandler:     config.BucketHandler,
 		objectHandler:     config.ObjectHandler,
 		multipartHandler:  config.MultipartHandler,
+		dashboardHandler:  config.DashboardHandler,
+		dashboardHTTP:     config.DashboardHTTP,
 		healthChecker:     config.HealthChecker,
 		authMiddleware:    config.AuthMiddleware,
 		rateLimiter:       config.RateLimiter,
@@ -64,7 +70,7 @@ func NewRouter(config RouterConfig) *Router {
 func (rt *Router) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	// Health check endpoints (no auth, no rate limiting)
+	// Health check endpoints (no auth)
 	if rt.healthChecker != nil {
 		mux.HandleFunc("/health", rt.healthChecker.HandleHealth)
 		mux.HandleFunc("/healthz", rt.healthChecker.HandleLiveness)
@@ -73,30 +79,34 @@ func (rt *Router) Handler() http.Handler {
 		mux.HandleFunc("/health", rt.handleHealth)
 	}
 
-	// Main S3 API handler
-	mux.HandleFunc("/", rt.handleS3Request)
+	// Web console (session auth inside handlers; no S3 SigV4)
+	if rt.dashboardHTTP != nil {
+		mux.Handle("/dashboard", rt.dashboardHTTP)
+		mux.Handle("/dashboard/", rt.dashboardHTTP)
+	} else if rt.dashboardHandler != nil {
+		h := rt.dashboardHandler.Handler()
+		mux.Handle("/dashboard", h)
+		mux.Handle("/dashboard/", h)
+	}
 
-	// Build middleware chain (innermost to outermost)
+	// S3 API — SigV4 auth required
+	var s3 http.Handler = http.HandlerFunc(rt.handleS3Request)
+	if rt.authMiddleware != nil {
+		s3 = rt.authMiddleware(s3)
+	}
+	mux.Handle("/", s3)
+
+	// Outer middleware chain (applies to everything including dashboard)
 	var handler http.Handler = mux
-
-	// Auth middleware (innermost - after tracing, before rate limiting)
-	handler = rt.authMiddleware(handler)
-
-	// Rate limiting middleware
 	if rt.rateLimiter != nil {
 		handler = rt.rateLimiter.Middleware(handler)
 	}
-
-	// Metrics middleware (track in-flight requests)
 	if rt.metricsMiddleware != nil {
 		handler = rt.metricsMiddleware.Middleware(handler)
 	}
-
-	// Tracing middleware (outermost - first to execute)
 	if rt.tracing != nil {
 		handler = rt.tracing.Middleware(handler)
 	}
-
 	return handler
 }
 
@@ -207,15 +217,11 @@ func (rt *Router) handleBucketRequest(w http.ResponseWriter, r *http.Request, bu
 		return
 	}
 
-	// TODO: Add more sub-resources (lifecycle, policy, acl, etc.)
-
 	// Basic bucket operations
 	switch r.Method {
 	case http.MethodHead:
 		rt.bucketHandler.HeadBucket(w, r)
 	case http.MethodGet:
-		// GET /{bucket} without sub-resource = ListObjects
-		// For now, we'll treat it as HeadBucket since ListObjects is in Phase 4
 		rt.handleListObjects(w, r, bucketName)
 	case http.MethodPut:
 		rt.bucketHandler.CreateBucket(w, r)
@@ -248,19 +254,15 @@ func (rt *Router) handleObjectRequest(w http.ResponseWriter, r *http.Request, bu
 	if uploadID != "" {
 		switch r.Method {
 		case http.MethodPut:
-			// UploadPart: PUT /{bucket}/{key}?partNumber=N&uploadId=X
 			rt.multipartHandler.UploadPart(w, r, bucketName, objectKey)
 			return
 		case http.MethodPost:
-			// CompleteMultipartUpload: POST /{bucket}/{key}?uploadId=X
 			rt.multipartHandler.CompleteMultipartUpload(w, r, bucketName, objectKey)
 			return
 		case http.MethodDelete:
-			// AbortMultipartUpload: DELETE /{bucket}/{key}?uploadId=X
 			rt.multipartHandler.AbortMultipartUpload(w, r, bucketName, objectKey)
 			return
 		case http.MethodGet:
-			// ListParts: GET /{bucket}/{key}?uploadId=X
 			rt.multipartHandler.ListParts(w, r, bucketName, objectKey)
 			return
 		}
@@ -273,7 +275,6 @@ func (rt *Router) handleObjectRequest(w http.ResponseWriter, r *http.Request, bu
 	case http.MethodHead:
 		rt.objectHandler.HeadObject(w, r, bucketName, objectKey)
 	case http.MethodPut:
-		// Check for copy operation (x-amz-copy-source header)
 		if r.Header.Get("x-amz-copy-source") != "" {
 			rt.objectHandler.CopyObject(w, r, bucketName, objectKey)
 			return
@@ -293,14 +294,10 @@ func (rt *Router) handleObjectRequest(w http.ResponseWriter, r *http.Request, bu
 // handleListObjects handles ListObjects requests.
 func (rt *Router) handleListObjects(w http.ResponseWriter, r *http.Request, bucketName string) {
 	query := r.URL.Query()
-
-	// Check for list-type=2 (ListObjectsV2)
 	if query.Get("list-type") == "2" {
 		rt.objectHandler.ListObjectsV2(w, r, bucketName)
 		return
 	}
-
-	// ListObjectsV1
 	rt.objectHandler.ListObjects(w, r, bucketName)
 }
 

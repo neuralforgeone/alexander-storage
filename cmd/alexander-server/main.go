@@ -114,6 +114,18 @@ func main() {
 	bucketService := service.NewBucketService(repos.Bucket, log.Logger)
 	objectService := service.NewObjectService(repos.Object, repos.Blob, repos.Bucket, storageBackend, locker, log.Logger)
 	multipartService := service.NewMultipartService(repos.Multipart, repos.Object, repos.Blob, repos.Bucket, storageBackend, locker, log.Logger)
+	userService := service.NewUserService(repos.User, log.Logger)
+	sessionService := service.NewSessionService(repos.Session, repos.User, log.Logger, service.DefaultSessionServiceConfig())
+	lifecycleService := service.NewLifecycleService(
+		repos.Lifecycle,
+		repos.Object,
+		repos.Bucket,
+		repos.Blob,
+		locker,
+		nil,
+		log.Logger,
+		service.LifecycleConfig{Enabled: false},
+	)
 
 	// Initialize metrics
 	var m *metrics.Metrics
@@ -187,6 +199,20 @@ func main() {
 	objectHandler := handler.NewObjectHandler(objectService, log.Logger)
 	multipartHandler := handler.NewMultipartHandler(multipartService, log.Logger)
 
+	dashboardHandler, err := handler.NewDashboardHandler(handler.DashboardConfig{
+		SessionService:   sessionService,
+		UserService:      userService,
+		BucketService:    bucketService,
+		ObjectService:    objectService,
+		LifecycleService: lifecycleService,
+		Logger:           log.Logger,
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize dashboard")
+	}
+	csrf := middleware.NewCSRFMiddleware(middleware.DefaultCSRFConfig())
+	dashboardHTTP := csrf.Handler(dashboardHandler.Handler())
+
 	// Initialize health checker
 	healthChecker := handler.NewHealthChecker(handler.HealthCheckerConfig{
 		DatabaseChecker: dbHealth,
@@ -200,6 +226,8 @@ func main() {
 		BucketHandler:    bucketHandler,
 		ObjectHandler:    objectHandler,
 		MultipartHandler: multipartHandler,
+		DashboardHandler: dashboardHandler,
+		DashboardHTTP:    dashboardHTTP,
 		HealthChecker:    healthChecker,
 		AuthMiddleware:   authMiddleware,
 		RateLimiter:      rateLimiter,
@@ -242,6 +270,7 @@ func main() {
 		log.Info().
 			Int("port", cfg.Server.Port).
 			Str("region", cfg.Auth.Region).
+			Str("console", fmt.Sprintf("http://127.0.0.1:%d/dashboard", cfg.Server.Port)).
 			Msg("Server listening")
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

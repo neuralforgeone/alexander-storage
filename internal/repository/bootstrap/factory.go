@@ -31,6 +31,8 @@ func CreatePostgres(ctx context.Context, cfg config.DatabaseConfig, logger zerol
 			Object:    postgres.NewObjectRepository(pgDB),
 			Blob:      postgres.NewBlobRepository(pgDB),
 			Multipart: postgres.NewMultipartRepository(pgDB),
+			Session:   postgres.NewSessionRepository(pgDB),
+			Lifecycle: postgres.NewLifecycleRepository(pgDB),
 		},
 	}, nil
 }
@@ -87,6 +89,8 @@ func CreateSQLite(ctx context.Context, cfg config.DatabaseConfig, logger zerolog
 			Object:    sqlite.NewObjectRepository(sqliteDB),
 			Blob:      sqlite.NewBlobRepository(sqliteDB),
 			Multipart: sqlite.NewMultipartRepository(sqliteDB),
+			Session:   sqlite.NewSessionRepository(sqliteDB),
+			Lifecycle: sqlite.NewLifecycleRepository(sqliteDB),
 		},
 	}, nil
 }

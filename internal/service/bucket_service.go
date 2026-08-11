@@ -329,6 +329,41 @@ func (s *BucketService) GetBucketACL(ctx context.Context, bucketName string) (do
 	return acl, nil
 }
 
+// UpdateBucketACLInput is the input for updating a bucket ACL.
+type UpdateBucketACLInput struct {
+	Name    string
+	OwnerID int64
+	ACL     domain.BucketACL
+}
+
+// UpdateBucketACL updates the canned ACL for a bucket the user owns.
+func (s *BucketService) UpdateBucketACL(ctx context.Context, input UpdateBucketACLInput) error {
+	if !domain.IsValidACL(string(input.ACL)) {
+		return fmt.Errorf("%w: invalid ACL", ErrInvalidInput)
+	}
+
+	bucket, err := s.bucketRepo.GetByName(ctx, input.Name)
+	if err != nil {
+		if errors.Is(err, domain.ErrBucketNotFound) {
+			return domain.ErrBucketNotFound
+		}
+		return fmt.Errorf("%w: %v", ErrInternalError, err)
+	}
+	if input.OwnerID != 0 && bucket.OwnerID != input.OwnerID {
+		return ErrBucketAccessDenied
+	}
+
+	if err := s.bucketRepo.UpdateACL(ctx, bucket.ID, input.ACL); err != nil {
+		return fmt.Errorf("%w: %v", ErrInternalError, err)
+	}
+
+	s.logger.Info().
+		Str("bucket", input.Name).
+		Str("acl", string(input.ACL)).
+		Msg("bucket ACL updated")
+	return nil
+}
+
 // =============================================================================
 // BucketACLAdapter
 // =============================================================================

@@ -45,4 +45,5 @@ var (
 	ErrEncryptionFailed = errors.New("encryption failed")
 	ErrDecryptionFailed = errors.New("decryption failed")
 	ErrInternalError    = errors.New("internal server error")
+	ErrInvalidInput     = errors.New("invalid input")
 )

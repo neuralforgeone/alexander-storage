@@ -1,77 +1,104 @@
 {{define "dashboard.html"}}
-{{template "base" .}}
-{{end}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/dashboard/static/dashboard.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/dashboard">Alexander <span>Storage</span></a>
+      <nav class="nav">
+        <a href="/dashboard" class="{{if eq .ActiveNav "buckets"}}is-active{{end}}">Buckets</a>
+        <a href="/dashboard/users" class="{{if eq .ActiveNav "users"}}is-active{{end}}">Users</a>
+      </nav>
+      <div class="user-meta">
+        <span><strong>{{.Username}}</strong></span>
+        <form method="post" action="/dashboard/logout" style="margin:0">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <button type="submit" class="btn btn-sm btn-ghost" style="color:var(--paper);border-color:rgba(255,255,255,0.2)">Sign out</button>
+        </form>
+      </div>
+    </header>
 
-{{define "content"}}
-<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-    <div class="sm:flex sm:items-center">
-        <div class="sm:flex-auto">
-            <h1 class="text-2xl font-semibold leading-6 text-gray-900">Buckets</h1>
-            <p class="mt-2 text-sm text-gray-700">A list of all your S3 buckets.</p>
+    <main class="main">
+      <h1>Buckets</h1>
+      <p class="lede">Browse object storage. Create a bucket, open it, and view or download files.</p>
+
+      {{if .Error}}<div class="flash flash-err">{{.Error}}</div>{{end}}
+      {{if .Success}}<div class="flash flash-ok">{{.Success}}</div>{{end}}
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>New bucket</h2>
+          <p>DNS-compatible name, 3–63 characters</p>
         </div>
-    </div>
+        <form method="post" action="/dashboard/buckets">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <div class="form-row cols-2">
+            <div>
+              <label for="name">Bucket name</label>
+              <input id="name" name="name" type="text" required placeholder="my-project-assets" pattern="[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]">
+            </div>
+            <div style="display:flex;align-items:end">
+              <button type="submit" class="btn btn-primary">Create bucket</button>
+            </div>
+          </div>
+        </form>
+      </section>
 
-    <div class="mt-8">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Your buckets</h2>
+          <p>{{len .Buckets}} total</p>
+        </div>
         {{if .Buckets}}
-        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-            <table class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Region</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ACL</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Versioning</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Created</th>
-                        <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                            <span class="sr-only">Actions</span>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
-                    {{range .Buckets}}
-                    <tr>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                            <a href="/dashboard/buckets/{{.Name}}" class="text-indigo-600 hover:text-indigo-900">{{.Name}}</a>
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{.Region}}</td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
-                            {{if eq .ACL "private"}}
-                            <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">Private</span>
-                            {{else if eq .ACL "public-read"}}
-                            <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Public Read</span>
-                            {{else if eq .ACL "public-read-write"}}
-                            <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Public Read/Write</span>
-                            {{else}}
-                            <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">{{.ACL}}</span>
-                            {{end}}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
-                            {{if eq .Versioning "Enabled"}}
-                            <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
-                            {{else if eq .Versioning "Suspended"}}
-                            <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Suspended</span>
-                            {{else}}
-                            <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">Disabled</span>
-                            {{end}}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{.CreatedAt.Format "Jan 02, 2006"}}</td>
-                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <a href="/dashboard/buckets/{{.Name}}" class="text-indigo-600 hover:text-indigo-900">Manage</a>
-                        </td>
-                    </tr>
-                    {{end}}
-                </tbody>
-            </table>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Region</th>
+                <th>ACL</th>
+                <th>Versioning</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Buckets}}
+              <tr>
+                <td class="mono"><a href="/dashboard/buckets/{{.Name}}">{{.Name}}</a></td>
+                <td class="muted">{{.Region}}</td>
+                <td><span class="tag">{{.ACL}}</span></td>
+                <td>
+                  {{if eq .Versioning "Enabled"}}
+                  <span class="tag tag-ok">Enabled</span>
+                  {{else}}
+                  <span class="tag">{{.Versioning}}</span>
+                  {{end}}
+                </td>
+                <td class="muted num">{{formatTime .CreatedAt}}</td>
+                <td style="text-align:right"><a class="btn btn-sm btn-ghost" href="/dashboard/buckets/{{.Name}}">Open</a></td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
         </div>
         {{else}}
-        <div class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-            <h3 class="mt-2 text-sm font-semibold text-gray-900">No buckets</h3>
-            <p class="mt-1 text-sm text-gray-500">Create a bucket using the AWS CLI or SDK.</p>
+        <div class="empty">
+          <strong>No buckets yet</strong>
+          Create one above, or use the S3 API / <span class="mono">mc</span> client.
         </div>
         {{end}}
-    </div>
-</div>
+      </section>
+
+      <p class="footer-note">S3 API remains on this host root path. Console is session-auth for admins only.</p>
+    </main>
+  </div>
+</body>
+</html>
 {{end}}

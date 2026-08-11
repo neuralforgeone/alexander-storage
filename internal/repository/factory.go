@@ -17,6 +17,8 @@ type Repositories struct {
 	Object    ObjectRepository
 	Blob      BlobRepository
 	Multipart MultipartUploadRepository
+	Session   SessionRepository
+	Lifecycle LifecycleRepository
 }
 
 // DatabaseHealth is an interface for database health checks.

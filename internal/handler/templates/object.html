@@ -1,0 +1,101 @@
+{{define "object.html"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/dashboard/static/dashboard.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/dashboard">Alexander <span>Storage</span></a>
+      <nav class="nav">
+        <a href="/dashboard" class="is-active">Buckets</a>
+        <a href="/dashboard/users">Users</a>
+      </nav>
+      <div class="user-meta">
+        <span><strong>{{.Username}}</strong></span>
+        <form method="post" action="/dashboard/logout" style="margin:0">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <button type="submit" class="btn btn-sm btn-ghost" style="color:var(--paper);border-color:rgba(255,255,255,0.2)">Sign out</button>
+        </form>
+      </div>
+    </header>
+
+    <main class="main">
+      <nav class="breadcrumb">
+        <a href="/dashboard">Buckets</a>
+        <span class="sep">/</span>
+        <a class="mono" href="/dashboard/buckets/{{.Bucket}}">{{.Bucket}}</a>
+        <span class="sep">/</span>
+        <span class="mono muted">{{.Key}}</span>
+      </nav>
+
+      <h1 class="mono" style="font-size:1.35rem;word-break:break-all">{{.Key}}</h1>
+      <p class="lede">Object preview and download</p>
+
+      <section class="panel">
+        <dl class="meta-grid">
+          <div>
+            <dt>Size</dt>
+            <dd>{{formatBytes .Size}}</dd>
+          </div>
+          <div>
+            <dt>Content-Type</dt>
+            <dd>{{if .ContentType}}{{.ContentType}}{{else}}—{{end}}</dd>
+          </div>
+          <div>
+            <dt>ETag</dt>
+            <dd>{{.ETag}}</dd>
+          </div>
+          <div>
+            <dt>Modified</dt>
+            <dd>{{formatTime .LastModified}}</dd>
+          </div>
+          {{if .VersionID}}
+          <div>
+            <dt>Version</dt>
+            <dd>{{.VersionID}}</dd>
+          </div>
+          {{end}}
+        </dl>
+        <div class="actions">
+          <a class="btn btn-primary" href="/dashboard/buckets/{{.Bucket}}/raw?key={{urlquery .Key}}&disposition=attachment">Download</a>
+          <a class="btn btn-ghost" href="/dashboard/buckets/{{.Bucket}}/raw?key={{urlquery .Key}}">Open raw</a>
+          <a class="btn btn-ghost" href="/dashboard/buckets/{{.Bucket}}">Back to bucket</a>
+        </div>
+      </section>
+
+      {{if .IsImage}}
+      <section class="panel">
+        <div class="panel-head"><h2>Preview</h2></div>
+        <div class="preview-frame">
+          <img src="/dashboard/buckets/{{.Bucket}}/raw?key={{urlquery .Key}}" alt="{{.Key}}">
+        </div>
+      </section>
+      {{else if .IsText}}
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Preview</h2>
+          {{if .TooLarge}}<p>Too large for inline preview (256 KiB cap)</p>{{end}}
+        </div>
+        {{if .PreviewText}}
+        <div class="preview-frame"><pre>{{.PreviewText}}</pre></div>
+        {{else if .TooLarge}}
+        <p class="muted">Download the file to view the full content.</p>
+        {{else}}
+        <p class="muted">No text content available.</p>
+        {{end}}
+      </section>
+      {{else}}
+      <section class="panel">
+        <p class="muted" style="margin:0">Binary or unsupported type for inline preview. Use download.</p>
+      </section>
+      {{end}}
+    </main>
+  </div>
+</body>
+</html>
+{{end}}

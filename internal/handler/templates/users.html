@@ -1,100 +1,105 @@
 {{define "users.html"}}
-{{template "base" .}}
-{{end}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/dashboard/static/dashboard.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/dashboard">Alexander <span>Storage</span></a>
+      <nav class="nav">
+        <a href="/dashboard" class="{{if eq .ActiveNav "buckets"}}is-active{{end}}">Buckets</a>
+        <a href="/dashboard/users" class="{{if eq .ActiveNav "users"}}is-active{{end}}">Users</a>
+      </nav>
+      <div class="user-meta">
+        <span><strong>{{.Username}}</strong></span>
+        <form method="post" action="/dashboard/logout" style="margin:0">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <button type="submit" class="btn btn-sm btn-ghost" style="color:var(--paper);border-color:rgba(255,255,255,0.2)">Sign out</button>
+        </form>
+      </div>
+    </header>
 
-{{define "content"}}
-<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-    <div class="sm:flex sm:items-center">
-        <div class="sm:flex-auto">
-            <h1 class="text-2xl font-semibold leading-6 text-gray-900">Users</h1>
-            <p class="mt-2 text-sm text-gray-700">Manage users who can access Alexander Storage.</p>
+    <main class="main">
+      <h1>Users</h1>
+      <p class="lede">Accounts that can own buckets and access keys. Dashboard login requires admin.</p>
+
+      {{if .Error}}<div class="flash flash-err">{{.Error}}</div>{{end}}
+      {{if .Success}}<div class="flash flash-ok">{{.Success}}</div>{{end}}
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Create user</h2>
         </div>
-    </div>
+        <form method="post" action="/dashboard/users">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <div class="form-row cols-4">
+            <div>
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" required>
+            </div>
+            <div>
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" required>
+            </div>
+            <div>
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" required minlength="8">
+            </div>
+            <div>
+              <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+          </div>
+        </form>
+      </section>
 
-    <!-- Add User Form -->
-    <div class="mt-6 bg-white shadow sm:rounded-lg">
-        <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-base font-semibold leading-6 text-gray-900">Create New User</h3>
-            <form hx-post="/dashboard/users" hx-swap="none" class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
-                <div>
-                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-                    <input type="text" name="username" id="username" required 
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                </div>
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input type="email" name="email" id="email" required 
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                </div>
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                    <input type="password" name="password" id="password" required 
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                </div>
-                <div class="flex items-end">
-                    <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                        Create User
-                    </button>
-                </div>
-            </form>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Directory</h2>
+          <p>{{len .Users}} users</p>
         </div>
-    </div>
-
-    <!-- Users List -->
-    <div class="mt-8">
         {{if .Users}}
-        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-            <table class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Username</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Created</th>
-                        <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                            <span class="sr-only">Actions</span>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
-                    {{range .Users}}
-                    <tr>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{{.Username}}</td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{.Email}}</td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
-                            {{if .IsActive}}
-                            <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Active</span>
-                            {{else}}
-                            <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Inactive</span>
-                            {{end}}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{.CreatedAt.Format "Jan 02, 2006"}}</td>
-                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <button hx-delete="/dashboard/users/{{.ID}}" hx-swap="none" hx-confirm="Are you sure you want to delete this user?" class="text-red-600 hover:text-red-900">Delete</button>
-                        </td>
-                    </tr>
-                    {{end}}
-                </tbody>
-            </table>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Admin</th>
+                <th>Active</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Users}}
+              <tr>
+                <td class="num">{{.ID}}</td>
+                <td class="mono">{{.Username}}</td>
+                <td>{{.Email}}</td>
+                <td>{{if .IsAdmin}}<span class="tag tag-ok">yes</span>{{else}}<span class="tag">no</span>{{end}}</td>
+                <td>{{if .IsActive}}<span class="tag tag-ok">yes</span>{{else}}<span class="tag">no</span>{{end}}</td>
+                <td style="text-align:right">
+                  <form method="post" action="/dashboard/users/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Delete user {{.Username}}?')">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                  </form>
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
         </div>
         {{else}}
-        <div class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            <h3 class="mt-2 text-sm font-semibold text-gray-900">No users</h3>
-            <p class="mt-1 text-sm text-gray-500">Create your first user to get started.</p>
-        </div>
+        <div class="empty"><strong>No users</strong></div>
         {{end}}
-    </div>
-</div>
-
-<script>
-    document.body.addEventListener('userCreated', function() {
-        window.location.reload();
-    });
-    document.body.addEventListener('userDeleted', function() {
-        window.location.reload();
-    });
-</script>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
 {{end}}
