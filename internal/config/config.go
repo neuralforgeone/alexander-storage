@@ -516,7 +516,8 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("database.driver must be 'postgres' or 'sqlite'")
 	}
 
-	if c.Database.Driver == "postgres" {
+	switch c.Database.Driver {
+	case "postgres":
 		if c.Database.Host == "" {
 			return fmt.Errorf("database.host is required for postgres driver")
 		}
@@ -526,7 +527,7 @@ func (c *Config) Validate() error {
 		if c.Database.Database == "" {
 			return fmt.Errorf("database.database is required for postgres driver")
 		}
-	} else if c.Database.Driver == "sqlite" {
+	case "sqlite":
 		if c.Database.Path == "" {
 			return fmt.Errorf("database.path is required for sqlite driver")
 		}

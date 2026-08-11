@@ -145,7 +145,8 @@ func (s *Server) Start() error {
 	s.nodes[s.config.NodeID] = self
 	s.nodesMu.Unlock()
 
-	lis, err := net.Listen("tcp", s.config.Address)
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(context.Background(), "tcp", s.config.Address)
 	if err != nil {
 		return err
 	}

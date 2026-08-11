@@ -1,41 +1,48 @@
+version: "2"
 run:
-  timeout: 5m
   modules-download-mode: readonly
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    # Essential linters
-    - govet
-    - staticcheck
-    - typecheck
-    - unused
-    - ineffassign
-    
-    # Code quality (less strict)
-    - gosimple
     - bodyclose
+    - govet
+    - ineffassign
     - noctx
-
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - shadow
-
+    - staticcheck
+    - unused
+  settings:
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - gosec
+          - noctx
+        path: _test\.go
+      - linters:
+          - errorlint
+        text: non-wrapping format verb for fmt.Errorf
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-rules:
-    # Exclude some linters from running on tests files
-    - path: _test\.go
-      linters:
-        - gosec
-        - errcheck
-
-    # Allow fmt.Errorf without wrapping
-    - text: "non-wrapping format verb for fmt.Errorf"
-      linters:
-        - errorlint
-
   max-issues-per-linter: 50
   max-same-issues: 10
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

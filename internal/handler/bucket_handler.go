@@ -282,9 +282,10 @@ func (h *BucketHandler) GetBucketVersioning(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Only include Status if versioning was ever enabled
-	if output.Status == domain.VersioningEnabled {
+	switch output.Status {
+	case domain.VersioningEnabled:
 		response.Status = "Enabled"
-	} else if output.Status == domain.VersioningSuspended {
+	case domain.VersioningSuspended:
 		response.Status = "Suspended"
 	}
 	// If Disabled, Status element is omitted (empty response body with just the root element)
