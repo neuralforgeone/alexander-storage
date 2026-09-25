@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-09-25
+
+### Changed
+
+- Dependency bumps:
+  - `aws-sdk-go-v2` → v1.43.5
+  - `aws-sdk-go-v2/config` → v1.32.36
+  - `aws-sdk-go-v2/credentials` → v1.19.35
+  - `aws-sdk-go-v2/service/s3` → v1.107.1
+  - `google.golang.org/grpc` → v1.83.0
+  - `rs/zerolog` → v1.35.1
+- Docker images: builder `golang:1.27-alpine`, runtime `alpine:3.24`
+- GitHub Actions: `actions/checkout` v7, `codecov/codecov-action` v7, `actions/upload-pages-artifact` v5, `actions/deploy-pages` v5, `docker/metadata-action` v6
+
 ## [2.1.0] - 2026-08-11
 
 ### Added
